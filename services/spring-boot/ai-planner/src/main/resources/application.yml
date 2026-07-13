@@ -1,0 +1,48 @@
+server:
+  port: ${AI_PLANNER_PORT:8087}
+
+spring:
+  application:
+    name: ai-planner
+  datasource:
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:r1superapp}
+    username: ${POSTGRES_USER:r1user}
+    password: ${POSTGRES_PASSWORD:r1password}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        default_schema: ai_svc
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:r1redispass}
+  kafka:
+    bootstrap-servers: ${KAFKA_BROKERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
+# ── Groq — free chat inference ────────────────────────────────────────────────
+groq:
+  api-key: ${GROQ_API_KEY:stub}
+  model: ${GROQ_MODEL:llama3-8b-8192}
+  base-url: https://api.groq.com/openai/v1
+
+# ── Ollama — free local embeddings (no API key, no internet required) ─────────
+ollama:
+  base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
+  embed-model: ${OLLAMA_EMBED_MODEL:nomic-embed-text}
+
+embedding:
+  dimensions: ${EMBEDDING_DIMENSIONS:768}
+
+# ── Planner config ────────────────────────────────────────────────────────────
+ai:
+  planner:
+    rag-top-k: 5
+    temperature: 0.7
+    max-tokens: 1024
+    supported-languages: [en, hi, gu]

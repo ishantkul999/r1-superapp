@@ -1,0 +1,35 @@
+server:
+  port: ${NOTIFICATION_SERVICE_PORT:8093}
+spring:
+  application:
+    name: notification-service
+  datasource:
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:r1superapp}
+    username: ${POSTGRES_USER:r1user}
+    password: ${POSTGRES_PASSWORD:r1password}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        default_schema: notif_svc
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:r1redispass}
+  kafka:
+    bootstrap-servers: ${KAFKA_BROKERS:localhost:9092}
+    consumer:
+      group-id: notification-service
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+
+firebase:
+  service-account: ${FIREBASE_SERVICE_ACCOUNT:stub}
+
+fast2sms:
+  api-key: ${FAST2SMS_API_KEY:stub}

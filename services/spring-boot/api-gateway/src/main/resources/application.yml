@@ -1,0 +1,203 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:r1redispass}
+  cloud:
+    gateway:
+      # ── Global CORS — must live here in YAML for Spring Cloud Gateway ──────
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOriginPatterns:
+              - "http://localhost:5173"
+              - "http://localhost:3000"
+              - "http://127.0.0.1:5173"
+              - "http://10.0.2.2:*"
+              - "capacitor://*"
+              - "ionic://*"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+              - PATCH
+              - HEAD
+            allowedHeaders:
+              - "*"
+            exposedHeaders:
+              - Authorization
+              - Content-Type
+            allowCredentials: true
+            maxAge: 3600
+
+      # ── Default filters (rate limiter REMOVED from default — applied per route) ──
+      default-filters:
+        - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_FIRST
+
+      routes:
+        # AUTH — no JWT filter, no rate limit on OTP endpoints
+        - id: auth-service
+          uri: http://${AUTH_SERVICE_HOST:localhost}:${AUTH_SERVICE_PORT:8081}
+          predicates:
+            - Path=/api/auth/**
+          filters:
+            - RemoveRequestHeader=X-User-Id
+            - RemoveRequestHeader=X-User-Role
+            - RemoveRequestHeader=X-User-Phone
+
+        - id: user-service
+          uri: http://${USER_SERVICE_HOST:localhost}:${USER_SERVICE_PORT:3001}
+          predicates:
+            - Path=/api/users/**
+          filters:
+            - name: JwtAuthFilter
+        # Station Control Room operations (user-service)
+        - id: station-control-ops
+          uri: http://${USER_SERVICE_HOST:localhost}:${USER_SERVICE_PORT:3001}
+          predicates:
+            - Path=/api/station/control/**
+          filters:
+            - name: JwtAuthFilter
+
+        # SuperAdmin operations (user-service)
+        - id: superadmin-ops
+          uri: http://${USER_SERVICE_HOST:localhost}:${USER_SERVICE_PORT:3001}
+          predicates:
+            - Path=/api/superadmin/**
+          filters:
+            - name: JwtAuthFilter
+
+        # Staff profile (Porter/RPF read-only — user-service)
+        - id: staff-profile
+          uri: http://${USER_SERVICE_HOST:localhost}:${USER_SERVICE_PORT:3001}
+          predicates:
+            - Path=/api/staff/**
+          filters:
+            - name: JwtAuthFilter
+
+        # ── Supervisor routes → porter-service ────────────────────────────────
+        - id: supervisor-service
+          uri: http://${PORTER_SERVICE_HOST:localhost}:${PORTER_SERVICE_PORT:8092}
+          predicates:
+            - Path=/api/supervisor/**
+          filters:
+            - name: JwtAuthFilter
+            # No RewritePath needed — SupervisorController is mapped to /api/supervisor/**
+
+        # ── SuperAdmin routes → station-dashboard-service ─────────────────────
+        - id: superadmin-service
+          uri: http://${STATION_DASHBOARD_HOST:localhost}:${STATION_DASHBOARD_PORT:8094}
+          predicates:
+            - Path=/api/superadmin/**
+          filters:
+            - name: JwtAuthFilter
+            # No RewritePath needed — SuperAdminController is mapped to /api/superadmin/**
+
+        - id: porter-service
+          uri: http://${PORTER_SERVICE_HOST:localhost}:${PORTER_SERVICE_PORT:8092}
+          predicates:
+            - Path=/api/porter/**
+          filters:
+            - name: JwtAuthFilter
+
+        # SOS — NO rate limit (safety critical)
+        - id: sos-service
+          uri: http://${SOS_SERVICE_HOST:localhost}:${SOS_SERVICE_PORT:3006}
+          predicates:
+            - Path=/api/sos/**
+          filters:
+            - name: JwtAuthFilter
+
+        - id: payment-service
+          uri: http://${PAYMENT_SERVICE_HOST:localhost}:${PAYMENT_SERVICE_PORT:8090}
+          predicates:
+            - Path=/api/payments/**
+          filters:
+            - name: JwtAuthFilter
+
+        - id: station-dashboard
+          uri: http://${STATION_DASHBOARD_HOST:localhost}:${STATION_DASHBOARD_PORT:8094}
+          predicates:
+            - Path=/api/station/**
+          filters:
+            - name: JwtAuthFilter
+
+        - id: notification-service
+          uri: http://${NOTIFICATION_SERVICE_HOST:localhost}:${NOTIFICATION_SERVICE_PORT:8093}
+          predicates:
+            - Path=/api/notifications/**
+          filters:
+            - name: JwtAuthFilter
+
+        - id: ai-assistant
+          uri: http://${AI_ASSISTANT_HOST:localhost}:${AI_ASSISTANT_PORT:8088}
+          predicates:
+            - Path=/api/ai/assistant/**
+          filters:
+            - name: JwtAuthFilter
+
+        - id: ai-planner
+          uri: http://${AI_PLANNER_HOST:localhost}:${AI_PLANNER_PORT:8087}
+          predicates:
+            - Path=/api/ai/planner/**
+          filters:
+            - name: JwtAuthFilter
+
+        - id: train-service
+          uri: http://${TRAIN_SERVICE_HOST:localhost}:${TRAIN_SERVICE_PORT:3011}
+          predicates:
+            - Path=/api/train/**
+
+        - id: map-service
+          uri: http://${MAP_SERVICE_HOST:localhost}:${MAP_SERVICE_PORT:3010}
+          predicates:
+            - Path=/api/maps/**
+          filters:
+            - name: JwtAuthFilter
+
+        - id: travel-service-p2
+          uri: http://${TRAVEL_SERVICE_HOST:localhost}:${TRAVEL_SERVICE_PORT:3003}
+          predicates:
+            - Path=/api/travel/**
+
+        - id: tourism-service-p2
+          uri: http://${TOURISM_SERVICE_HOST:localhost}:${TOURISM_SERVICE_PORT:3004}
+          predicates:
+            - Path=/api/tourism/**
+
+        - id: stay-service-p2
+          uri: http://${STAY_SERVICE_HOST:localhost}:${STAY_SERVICE_PORT:3005}
+          predicates:
+            - Path=/api/stay/**
+
+        - id: vendor-service-p2
+          uri: http://${VENDOR_SERVICE_HOST:localhost}:${VENDOR_SERVICE_PORT:3012}
+          predicates:
+            - Path=/api/vendor/**
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BROKERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
+jwt:
+  secret: ${JWT_SECRET:dev-jwt-secret-change-in-production-must-be-256-bit}
+
+internal:
+  events:
+    secret: ${INTERNAL_EVENTS_SECRET:dev-internal-secret}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

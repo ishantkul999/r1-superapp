@@ -1,0 +1,27 @@
+{
+  "name": "sos-service",
+  "version": "1.0.0",
+  "description": "R1 SuperApp - SOS Service",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js"
+  },
+  "dependencies": {
+    "axios": "^1.7.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "helmet": "^7.1.0",
+    "kafkajs": "^2.2.4",
+    "morgan": "^1.10.0",
+    "pg": "^8.11.5",
+    "redis": "^4.6.13",
+    "socket.io": "^4.7.5",
+    "socket.io-client": "^4.8.3",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.2"
+  }
+}

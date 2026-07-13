@@ -1,0 +1,36 @@
+server:
+  port: ${STATION_DASHBOARD_PORT:8094}
+spring:
+  application:
+    name: station-dashboard-service
+  datasource:
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:r1superapp}
+    username: ${POSTGRES_USER:r1user}
+    password: ${POSTGRES_PASSWORD:r1password}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        default_schema: station_svc
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:r1redispass}
+  kafka:
+    bootstrap-servers: ${KAFKA_BROKERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    consumer:
+      group-id: station-dashboard
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+
+cris:
+  api-key: ${CRIS_API_KEY:stub}
+  base-url: ${CRIS_API_BASE_URL:https://api.cris.org.in/v1}

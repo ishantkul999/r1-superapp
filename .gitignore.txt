@@ -1,0 +1,37 @@
+# IntelliJ
+.idea/
+*.iml
+
+# Java
+**/target/
+*.class
+
+# Maven
+.mvn/wrapper/maven-wrapper.jar
+
+# Logs
+*.log
+hs_err_pid*
+replay_pid*
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Node.js
+**/node_modules/
+**/dist/
+**/.next/
+**/build/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# VS Code
+.vscode/
+
+# Coverage
+coverage/
+out/

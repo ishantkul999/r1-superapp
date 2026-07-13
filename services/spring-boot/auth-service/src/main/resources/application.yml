@@ -1,0 +1,64 @@
+server:
+  port: ${AUTH_SERVICE_PORT:8081}
+
+spring:
+  application:
+    name: auth-service
+  datasource:
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:r1superapp}
+    username: ${POSTGRES_USER:r1user}
+    password: ${POSTGRES_PASSWORD:r1password}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        default_schema: auth_svc
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+    show-sql: false
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:r1redispass}
+  kafka:
+    bootstrap-servers: ${KAFKA_BROKERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    consumer:
+      group-id: auth-service
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+
+jwt:
+  secret: ${JWT_SECRET:dev-jwt-secret-change-in-production-must-be-256-bit}
+  access-token-expiry-minutes: 15
+  refresh-token-expiry-days: 7
+
+otp:
+  dev-mode: ${OTP_DEV_MODE:true}
+  dev-otp: ${DEV_OTP:123456}
+  ttl-seconds: 300
+  rate-limit-seconds: 60
+  lockout-seconds: 1800
+  max-wrong-attempts: 3
+
+fast2sms:
+  api-key: ${FAST2SMS_API_KEY:stub}
+  base-url: https://www.fast2sms.com/dev/bulkV2
+
+user-service:
+  base-url: http://${USER_SERVICE_HOST:localhost}:${USER_SERVICE_PORT:3001}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+internal:
+  secret: ${INTERNAL_EVENTS_SECRET:dev-internal-secret}

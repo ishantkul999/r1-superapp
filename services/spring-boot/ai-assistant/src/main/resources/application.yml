@@ -1,0 +1,48 @@
+server:
+  port: ${AI_ASSISTANT_PORT:8088}
+
+spring:
+  application:
+    name: ai-assistant
+  datasource:
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:r1superapp}
+    username: ${POSTGRES_USER:r1user}
+    password: ${POSTGRES_PASSWORD:r1password}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        default_schema: ai_svc
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:r1redispass}
+
+# ── Groq API — replaces OpenAI for chat ───────────────────────────────────────
+# Free tier: https://console.groq.com (no credit card for basic use)
+# Set GROQ_API_KEY env var. Leave as 'stub' for local dev without API key.
+groq:
+  api-key: ${GROQ_API_KEY:stub}
+  model: ${GROQ_MODEL:llama3-8b-8192}
+  base-url: https://api.groq.com/openai/v1
+
+# ── Ollama — completely free local embeddings (no API key needed) ─────────────
+# Install: https://ollama.com/download
+# Then run: ollama pull nomic-embed-text
+# Ollama starts automatically on port 11434 after installation.
+ollama:
+  base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
+  embed-model: ${OLLAMA_EMBED_MODEL:nomic-embed-text}
+
+# Embedding vector size for nomic-embed-text is 768
+# (OpenAI text-embedding-3-small was 384 — if you have existing vectors,
+#  re-ingest them via the AI Knowledge Base page after updating this)
+embedding:
+  dimensions: ${EMBEDDING_DIMENSIONS:768}
+
+# ── Chat session config (unchanged) ───────────────────────────────────────────
+chat:
+  session-ttl-minutes: 30
+  max-history-messages: 20

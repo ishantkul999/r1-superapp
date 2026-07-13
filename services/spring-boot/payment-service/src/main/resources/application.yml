@@ -1,0 +1,31 @@
+server:
+  port: ${PAYMENT_SERVICE_PORT:8090}
+spring:
+  application:
+    name: payment-service
+  datasource:
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:r1superapp}
+    username: ${POSTGRES_USER:r1user}
+    password: ${POSTGRES_PASSWORD:r1password}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        default_schema: payment_svc
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:r1redispass}
+  kafka:
+    bootstrap-servers: ${KAFKA_BROKERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
+cashfree:
+  app-id: ${CASHFREE_APP_ID:stub}
+  secret: ${CASHFREE_SECRET:stub}
+  env: ${CASHFREE_ENV:TEST}
+  base-url: https://sandbox.cashfree.com/pg
