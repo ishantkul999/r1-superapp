@@ -37,6 +37,28 @@ public interface PorterBookingRepository extends JpaRepository<PorterBooking, UU
     @Query("SELECT b FROM PorterBooking b WHERE b.status = 'PENDING_ACCEPTANCE' AND b.porterId IS NULL ORDER BY b.bookingTime ASC")
     List<PorterBooking> findUnassignedPendingBookings();
 
+    /**
+     * Active (ACCEPTED/IN_PROGRESS) bookings currently held by OFFLINE
+     * porters — i.e. jobs a supervisor manually dispatched to a porter who
+     * doesn't have app access. Since those porters can't call
+     * /bookings/{id}/complete themselves, this is what backs the
+     * supervisor's "Manually Assigned Jobs" view so they can mark a job
+     * complete on the porter's behalf once it's actually done.
+     */
+    @Query(value = """
+        SELECT
+            b.id, b.booking_reference, b.status, b.service_type,
+            b.pickup_location, b.destination, b.passenger_name, b.passenger_mobile,
+            b.total_amount, b.payment_method, b.acceptance_time, b.start_time,
+            p.id AS porter_id, p.full_name AS porter_name, p.phone AS porter_phone,
+            p.badge_number AS porter_badge
+        FROM porter_svc.porter_bookings b
+        JOIN porter_svc.porters p ON p.id = b.porter_id
+        WHERE p.is_online = false AND b.status IN ('ACCEPTED','IN_PROGRESS')
+        ORDER BY b.acceptance_time ASC
+        """, nativeQuery = true)
+    List<Object[]> findActiveBookingsForOfflinePortersRaw();
+
     @Query("SELECT COUNT(b) FROM PorterBooking b WHERE b.status = 'COMPLETED' AND b.completionTime >= :since")
     long countAllCompletedSince(Instant since);
 

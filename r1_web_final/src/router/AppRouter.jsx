@@ -18,6 +18,7 @@ const PnrPage           = lazy(() => import('../pages/user/PnrPage.jsx'));
 const StationRoomsPage  = lazy(() => import('../pages/user/RoomsPage.jsx'));   // ✅ actual filename
 const LockersPage       = lazy(() => import('../pages/user/LockersPage.jsx'));
 const AiChatPage        = lazy(() => import('../pages/user/AiChatPage.jsx'));
+const ItineraryPlannerPage = lazy(() => import('../pages/user/ItineraryPlannerPage.jsx'));
 const BookingsPage      = lazy(() => import('../pages/user/BookingsPage.jsx'));
 const UserProfilePage   = lazy(() => import('../pages/user/ProfilePage.jsx'));
 
@@ -34,6 +35,7 @@ const LivePorterMap       = lazy(() => import('../pages/supervisor/LivePorterMap
 const UnassignedQueue     = lazy(() => import('../pages/supervisor/UnassignedQueuePage.jsx'));
 const PorterDirectory     = lazy(() => import('../pages/supervisor/PorterDirectoryPage.jsx'));
 const CreatePorter        = lazy(() => import('../pages/supervisor/CreatePorterPage.jsx'));
+const ManualAssignment   = lazy(() => import('../pages/supervisor/ManualAssignmentPage.jsx'));
 
 // ── RPF ───────────────────────────────────────────────────────────────────────
 const RpfDashboard    = lazy(() => import('../pages/rpf/RpfDashboard.jsx'));
@@ -117,6 +119,7 @@ export default function AppRouter() {
             <Route path="rooms"    element={<StationRoomsPage />} />
             <Route path="lockers"  element={<LockersPage />} />
             <Route path="ai-chat"  element={<AiChatPage />} />
+            <Route path="itinerary" element={<ItineraryPlannerPage />} />
             <Route path="bookings" element={<BookingsPage />} />
             <Route path="profile"  element={<UserProfilePage />} />
           </Route>
@@ -145,6 +148,7 @@ export default function AppRouter() {
             <Route path="queue"           element={<UnassignedQueue />} />
             <Route path="porters"         element={<PorterDirectory />} />
             <Route path="create-porter"   element={<CreatePorter />} />
+            <Route path="manual-assignment" element={<ManualAssignment />} />
           </Route>
 
           {/* ── RPF ───────────────────────────────────────────────────────── */}

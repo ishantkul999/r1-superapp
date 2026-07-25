@@ -8,6 +8,14 @@ spring:
     url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:r1superapp}
     username: ${POSTGRES_USER:r1user}
     password: ${POSTGRES_PASSWORD:r1password}
+    hikari:
+      max-lifetime: 240000
+      idle-timeout: 120000
+      keepalive-time: 60000
+      connection-timeout: 10000
+      validation-timeout: 3000
+      minimum-idle: 2
+      maximum-pool-size: 10
   jpa:
     hibernate:
       ddl-auto: validate
@@ -20,29 +28,39 @@ spring:
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:r1redispass}
 
-# ── Groq API — replaces OpenAI for chat ───────────────────────────────────────
-# Free tier: https://console.groq.com (no credit card for basic use)
-# Set GROQ_API_KEY env var. Leave as 'stub' for local dev without API key.
-groq:
-  api-key: ${GROQ_API_KEY:stub}
-  model: ${GROQ_MODEL:llama3-8b-8192}
-  base-url: https://api.groq.com/openai/v1
-
-# ── Ollama — completely free local embeddings (no API key needed) ─────────────
-# Install: https://ollama.com/download
-# Then run: ollama pull nomic-embed-text
-# Ollama starts automatically on port 11434 after installation.
-ollama:
-  base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
-  embed-model: ${OLLAMA_EMBED_MODEL:nomic-embed-text}
-
-# Embedding vector size for nomic-embed-text is 768
-# (OpenAI text-embedding-3-small was 384 — if you have existing vectors,
-#  re-ingest them via the AI Knowledge Base page after updating this)
-embedding:
-  dimensions: ${EMBEDDING_DIMENSIONS:768}
+  # ── Spring AI — SAME vector store as ai-planner ─────────────────────────
+  # This is what lets the assistant ground answers (porter pricing, locker
+  # rates, station facilities, etc.) in ai_svc.vector_store instead of the
+  # LLM guessing, and it's the same table ai-planner's Knowledge Base admin
+  # page ingests into — no duplicate ingestion needed.
+  ai:
+    model:
+      chat: openai
+      embedding: ollama
+    openai:
+      api-key: ${GROQ_API_KEY:stub}
+      base-url: https://api.groq.com/openai
+      chat:
+        options:
+          model: ${GROQ_MODEL:llama-3.1-8b-instant}
+          temperature: 0.6
+          max-tokens: 600
+    ollama:
+      base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
+      embedding:
+        options:
+          model: ${OLLAMA_EMBED_MODEL:nomic-embed-text}
+    vectorstore:
+      pgvector:
+        schema-name: ai_svc
+        table-name: vector_store
+        dimensions: 768
+        distance-type: COSINE_DISTANCE
+        index-type: HNSW
+        initialize-schema: true
 
 # ── Chat session config (unchanged) ───────────────────────────────────────────
 chat:
   session-ttl-minutes: 30
   max-history-messages: 20
+  rag-top-k: 3

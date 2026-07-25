@@ -4,6 +4,8 @@ const cors = require('cors');
 const helmet = require('helmet');
 
 const app = express();
+
+app.get('/health', (req, res) => res.json({ status: 'UP', service: 'vendor-service' }));
 const PORT = process.env.PORT || 3012;
 
 app.use(helmet());

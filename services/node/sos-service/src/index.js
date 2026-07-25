@@ -9,8 +9,11 @@ const morgan = require('morgan');
 const sosRoutes = require('./routes/sos.routes');
 const { setupSocketHandlers } = require('./socket/socket.handlers');
 const { startPorterEventsConsumer } = require('./kafka/porter-events.consumer'); // NEW
+const { startNotificationEventsConsumer } = require('./kafka/notification-events.consumer'); // NEW
 
 const app = express();
+
+app.get('/health', (req, res) => res.json({ status: 'UP', service: 'sos-service' }));
 const server = http.createServer(app);
 const PORT = process.env.SOS_SERVICE_PORT || 3006;
 
@@ -50,6 +53,12 @@ setupSocketHandlers(io);
 // This makes new bookings, assignments, and 15s-timeout escalations show up
 // instantly on the Supervisor and Porter dashboards without polling.
 startPorterEventsConsumer(io);
+
+// ── Kafka → Socket.io Bridge for Notifications (NEW) ──────────────────
+// Listens to notification.created (published by notification-service
+// after persisting each notification) and pushes it live to the user's
+// "user:{userId}" room, so the notification bell updates instantly.
+startNotificationEventsConsumer(io);
 
 server.listen(PORT, () => console.log(`sos-service running on :${PORT}`));
 module.exports = { app, io };

@@ -6,6 +6,8 @@ const morgan = require('morgan');
 const { createClient } = require('redis');
 
 const app = express();
+
+app.get('/health', (req, res) => res.json({ status: 'UP', service: 'train-service' }));
 const PORT = process.env.TRAIN_SERVICE_PORT || 3011;
 
 app.use(helmet());

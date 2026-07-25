@@ -21,7 +21,7 @@ import java.util.Map;
 public class GroqChatClient {
 
     @Value("${groq.api-key:stub}")     private String groqApiKey;
-    @Value("${groq.model:llama3-8b-8192}") private String groqModel;
+    @Value("${groq.model:llama-3.1-8b-instant}") private String groqModel;
     @Value("${groq.base-url:https://api.groq.com/openai/v1}") private String groqBaseUrl;
 
     @Value("${ollama.base-url:http://localhost:11434}") private String ollamaBaseUrl;
@@ -41,8 +41,12 @@ public class GroqChatClient {
         h.setBearerAuth(groqApiKey);
 
         Map<String, Object> body = Map.of(
-                "model", groqModel, "messages", messages,
-                "max_tokens", 1024, "temperature", 0.7, "stream", false
+                "model", groqModel,
+                "messages", messages,
+                "max_tokens", 1024,
+                "temperature", 0.2,
+                "stream", false,
+                "response_format", Map.of("type", "json_object")
         );
         try {
             @SuppressWarnings("unchecked")

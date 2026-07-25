@@ -10,6 +10,7 @@ const QUICK_ACTIONS = [
   { icon:'🛏', label:'Station Rooms',  to:'/user/rooms',    color:'#7C3AED' },
   { icon:'🔒', label:'Digital Lockers',to:'/user/lockers',  color:'#B45309' },
   { icon:'🤖', label:'AI Assistant',   to:'/user/ai-chat',  color:'#0891B2' },
+  { icon:'🗺️', label:'Trip Planner',   to:'/user/itinerary',color:'#C2410C' },
   { icon:'📋', label:'My Bookings',    to:'/user/bookings', color:'#15803D' },
 ];
 
@@ -25,7 +26,16 @@ export default function UserDashboard() {
 
   const loadBookings = () => {
     api.get('/api/porter/bookings/my')
-      .then(r => setBookings((Array.isArray(r.data) ? r.data : (r.data?.bookings||[])).slice(0,3)))
+      .then(r => {
+        const all = Array.isArray(r.data) ? r.data : (r.data?.bookings || []);
+        // Show upcoming/active bookings first (PENDING_ACCEPTANCE, ACCEPTED,
+        // IN_PROGRESS), then fill remaining slots with the most recent
+        // completed/cancelled ones — instead of just slicing the raw list,
+        // which could bury an active booking under older completed ones.
+        const active = all.filter(b => ['PENDING_ACCEPTANCE', 'ACCEPTED', 'IN_PROGRESS'].includes(b.status));
+        const rest = all.filter(b => !['PENDING_ACCEPTANCE', 'ACCEPTED', 'IN_PROGRESS'].includes(b.status));
+        setBookings([...active, ...rest].slice(0, 3));
+      })
       .catch(()=>{})
       .finally(()=>setLoading(false));
   };
@@ -68,10 +78,10 @@ export default function UserDashboard() {
         </div>
       </div>
 
-      {/* Recent bookings */}
+      {/* Upcoming / recent bookings */}
       <div>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}}>
-          <h3 style={{fontWeight:700,fontSize:'0.971rem'}}>Recent Bookings</h3>
+          <h3 style={{fontWeight:700,fontSize:'0.971rem'}}>{bookings.some(b=>['PENDING_ACCEPTANCE','ACCEPTED','IN_PROGRESS'].includes(b.status)) ? 'Upcoming Services' : 'Recent Bookings'}</h3>
           <button onClick={()=>navigate('/user/bookings')} style={{background:'none',border:'none',cursor:'pointer',color:'var(--color-primary)',fontSize:'0.829rem',fontWeight:600}}>View all →</button>
         </div>
 
@@ -89,21 +99,41 @@ export default function UserDashboard() {
         ) : bookings.map(b => {
           const live     = liveStatus[b.id];
           const isActive = ['PENDING_ACCEPTANCE','ACCEPTED','IN_PROGRESS'].includes(b.status);
+          // Porter contact is joined into GET /api/porter/bookings/my as
+          // porterName/porterPhone/porterBadge — populated once accepted.
+          const hasPorter = isActive && b.porterName;
           return (
             <div key={b.id} className="card" onClick={()=>navigate('/user/bookings')}
-              style={{display:'flex',alignItems:'center',gap:14,padding:'14px 18px',cursor:'pointer',marginBottom:10,border:isActive?'2px solid var(--color-secondary)':'1px solid var(--color-border-light)'}}>
-              <div style={{width:40,height:40,borderRadius:10,flexShrink:0,background:isActive?'rgba(13,148,136,0.1)':'rgba(27,58,107,0.07)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'1.143rem'}}>
-                {b.serviceType?.includes('WHEELCHAIR')?'♿':'🛄'}
-              </div>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{fontWeight:600,fontSize:'0.871rem',marginBottom:2}}>{b.serviceType?.replace(/_/g,' ')} Service</div>
-                <div style={{fontSize:'0.771rem',color:live?'var(--color-secondary)':'var(--color-text-muted)'}}>
-                  {live || STATUS_LABEL[b.status] || b.status}
+              style={{padding:'14px 18px',cursor:'pointer',marginBottom:10,border:isActive?'2px solid var(--color-secondary)':'1px solid var(--color-border-light)'}}>
+              <div style={{display:'flex',alignItems:'center',gap:14}}>
+                <div style={{width:40,height:40,borderRadius:10,flexShrink:0,background:isActive?'rgba(13,148,136,0.1)':'rgba(27,58,107,0.07)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'1.143rem'}}>
+                  {b.serviceType?.includes('WHEELCHAIR')?'♿':'🛄'}
                 </div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontWeight:600,fontSize:'0.871rem',marginBottom:2}}>{b.serviceType?.replace(/_/g,' ')} Service</div>
+                  <div style={{fontSize:'0.771rem',color:live?'var(--color-secondary)':'var(--color-text-muted)'}}>
+                    {live || STATUS_LABEL[b.status] || b.status}
+                  </div>
+                </div>
+                <span className={`badge ${STATUS_BADGE[b.status]||'badge-muted'}`}>
+                  {b.status==='PENDING_ACCEPTANCE'?'Pending':b.status==='ACCEPTED'?'Assigned':b.status==='IN_PROGRESS'?'Active':b.status}
+                </span>
               </div>
-              <span className={`badge ${STATUS_BADGE[b.status]||'badge-muted'}`}>
-                {b.status==='PENDING_ACCEPTANCE'?'Pending':b.status==='ACCEPTED'?'Assigned':b.status==='IN_PROGRESS'?'Active':b.status}
-              </span>
+              {hasPorter && (
+                <div
+                  onClick={e => e.stopPropagation()}
+                  style={{marginTop:10,paddingTop:10,borderTop:'1px solid var(--color-border-light)',display:'flex',justifyContent:'space-between',alignItems:'center'}}
+                >
+                  <div style={{fontSize:'0.786rem'}}>
+                    <span style={{color:'var(--color-text-muted)'}}>Porter: </span>
+                    <strong>{b.porterName}</strong>
+                    {b.porterBadge && <span style={{color:'var(--color-text-muted)'}}> ({b.porterBadge})</span>}
+                  </div>
+                  {b.porterPhone && (
+                    <a href={`tel:${b.porterPhone}`} className="btn btn-outline btn-sm" style={{whiteSpace:'nowrap'}}>📞 {b.porterPhone}</a>
+                  )}
+                </div>
+              )}
             </div>
           );
         })}
@@ -111,4 +141,5 @@ export default function UserDashboard() {
     </div>
   );
 }
+
 

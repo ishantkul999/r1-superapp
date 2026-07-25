@@ -5,6 +5,8 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 
 const app = express();
+
+app.get('/health', (req, res) => res.json({ status: 'UP', service: 'map-service' }));
 const PORT = process.env.MAP_SERVICE_PORT || 3010;
 
 app.use(helmet());

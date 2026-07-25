@@ -1,120 +1,133 @@
 'use strict';
 /**
- * porter-events.consumer.js — NEW FILE
+ * porter-events.consumer.js — REPLACE existing file
  *
  * DROP AT:
  *   services/node/sos-service/src/kafka/porter-events.consumer.js
  *
- * WHY THIS LIVES IN sos-service:
- *   sos-service already runs a Socket.io server on port 3006, and the
- *   socket.handlers.js already defines rooms for 'supervisor-room',
- *   'porter:{porterId}', and 'user:{userId}' — but nothing was publishing
- *   to them for booking events. porter-service (Spring Boot) already
- *   publishes to Kafka topics porter.booked / porter.assigned / porter.completed
- *   via PorterEventProducer.java — we just need a consumer to re-broadcast
- *   those events over the existing Socket.io connection.
+ * FIX: Kafka consumer rebalance storm
+ * Image 2 showed repeated errors from 'sos-service-bridge' consumer group:
+ *   "The coordinator is not aware of this member"
+ *   "re-joining the group"
  *
- * THIS SOLVES:
- *   "I WANT AS SOON AS USER BOOKS A PORTER IT SHOULD IMMEDIATELY REFLECT ON
- *    BOTH PORTER AS WELL AS SUPERVISOR SIDE"
+ * ROOT CAUSE: KafkaJS default sessionTimeout is 30s. When the sos-service
+ * Kafka consumer takes longer than 30s to process + heartbeat (e.g. during
+ * a Socket.io broadcast to many clients), the broker considers it dead and
+ * removes it from the group → rebalance → consumer re-joins → same loop.
  *
- * FLOW:
- *   1. User books porter → porter-service saves booking, publishes Kafka
- *      event to topic "porter.booked"
- *   2. This consumer picks it up, emits Socket.io event "booking:new" to
- *      the 'supervisor-room' (so all supervisors see the new pending request
- *      instantly) AND to 'user:{userId}' (so the passenger sees "Finding a
- *      porter..." update live)
- *   3. When a porter accepts → porter-service publishes "porter.assigned"
- *      → this consumer emits "booking:assigned" to 'user:{userId}' and
- *      removes it from supervisors' pending queue view
- *   4. supervisor-assignment-escalated (NEW topic, see below) → emitted when
- *      the 15s timer in SupervisorAssignmentScheduler.java expires → pushes
- *      to 'supervisor-room' so supervisors see it needs manual/offline assignment
+ * FIX: Increase sessionTimeout + heartbeatInterval in the consumer config.
+ * Also added retry config so transient connection errors don't crash the consumer.
  */
 const { Kafka } = require('kafkajs');
 
 const KAFKA_BROKERS = (process.env.KAFKA_BROKERS || 'localhost:9092').split(',');
-const kafka = new Kafka({ clientId: 'sos-service-bridge', brokers: KAFKA_BROKERS, retry: { retries: 3 } });
+
+const kafka = new Kafka({
+  clientId: 'sos-service-bridge',
+  brokers:  KAFKA_BROKERS,
+  retry: {
+    initialRetryTime: 1000,
+    retries: 8,
+  },
+});
 
 const TOPICS = [
   'porter.booked',
   'porter.assigned',
   'porter.completed',
-  'supervisor.escalation',   // NEW — published when 15s timer expires (see scheduler patch)
+  'supervisor.escalation',
 ];
 
 async function startPorterEventsConsumer(io) {
-  const consumer = kafka.consumer({ groupId: 'sos-service-socket-bridge' });
+  const consumer = kafka.consumer({
+    groupId: 'sos-service-socket-bridge',
+    // FIX: increased timeouts to stop rebalance storm
+    sessionTimeout:      60000,   // 60s — broker waits this long before declaring consumer dead
+    heartbeatInterval:   20000,   // 20s — consumer sends heartbeat every 20s (must be < 1/3 of sessionTimeout)
+    maxBytesPerPartition: 1048576, // 1MB per partition per fetch
+  });
 
   try {
     await consumer.connect();
     await consumer.subscribe({ topics: TOPICS, fromBeginning: false });
 
-    console.log('[Kafka Bridge] Subscribed to porter event topics for real-time Socket.io push');
+    console.log('[Kafka Bridge] Connected. Subscribed to:', TOPICS.join(', '));
 
     await consumer.run({
+      // Process one message at a time — prevents long processing blocking heartbeats
+      partitionsConsumedConcurrently: 1,
       eachMessage: async ({ topic, message }) => {
         let event;
         try {
           event = JSON.parse(message.value.toString());
         } catch (e) {
-          console.error('[Kafka Bridge] Failed to parse message:', e.message);
+          console.error('[Kafka Bridge] Bad message on', topic, ':', e.message);
           return;
         }
 
-        switch (topic) {
-          case 'porter.booked':
-            // New booking created — notify ALL supervisors instantly + the passenger
-            io.to('supervisor-room').emit('booking:new', event);
-            if (event.userId) {
-              io.to(`user:${event.userId}`).emit('booking:status', {
-                ...event, statusMessage: 'Finding a porter for you…',
+        try {
+          switch (topic) {
+            case 'porter.booked':
+              // New booking: notify supervisor-room instantly + user
+              io.to('supervisor-room').emit('booking:new', event);
+              if (event.userId) {
+                io.to(`user:${event.userId}`).emit('booking:status', {
+                  ...event,
+                  statusMessage: 'Finding a porter for you…',
+                });
+              }
+              console.log(`[Kafka Bridge] booking:new → supervisor-room + user:${event.userId}`);
+              break;
+
+            case 'porter.assigned':
+              // Porter accepted: notify user + remove from supervisor queue
+              if (event.userId) {
+                io.to(`user:${event.userId}`).emit('booking:assigned', {
+                  ...event,
+                  statusMessage: 'A porter has been assigned and is on the way!',
+                });
+              }
+              io.to('supervisor-room').emit('booking:removed-from-queue', { bookingId: event.bookingId });
+              if (event.porterId) {
+                io.to(`porter:${event.porterId}`).emit('job:assigned', event);
+              }
+              console.log(`[Kafka Bridge] booking:assigned → user:${event.userId}, porter:${event.porterId}`);
+              break;
+
+            case 'porter.completed':
+              if (event.userId) {
+                io.to(`user:${event.userId}`).emit('booking:completed', event);
+              }
+              break;
+
+            case 'supervisor.escalation':
+              // 15s timer expired — push to supervisor for manual assignment
+              io.to('supervisor-room').emit('booking:escalated', {
+                ...event,
+                statusMessage: 'No porter accepted within 15 seconds. Manual assignment needed.',
               });
-            }
-            console.log(`[Kafka Bridge] booking:new → supervisor-room, user:${event.userId}`);
-            break;
-
-          case 'porter.assigned':
-            // A porter accepted — notify the passenger and remove from supervisor's pending view
-            if (event.userId) {
-              io.to(`user:${event.userId}`).emit('booking:assigned', {
-                ...event, statusMessage: 'A porter has been assigned and is on the way!',
-              });
-            }
-            io.to('supervisor-room').emit('booking:removed-from-queue', { bookingId: event.bookingId });
-            // Also notify the specific porter's personal room (in case they have multiple tabs/devices)
-            if (event.porterId) {
-              io.to(`porter:${event.porterId}`).emit('job:assigned', event);
-            }
-            console.log(`[Kafka Bridge] booking:assigned → user:${event.userId}, porter:${event.porterId}`);
-            break;
-
-          case 'porter.completed':
-            if (event.userId) {
-              io.to(`user:${event.userId}`).emit('booking:completed', event);
-            }
-            console.log(`[Kafka Bridge] booking:completed → user:${event.userId}`);
-            break;
-
-          case 'supervisor.escalation':
-            // 15-second timer expired — booking needs manual/offline porter assignment
-            io.to('supervisor-room').emit('booking:escalated', {
-              ...event,
-              statusMessage: 'No porter accepted within 15 seconds — manual assignment needed',
-            });
-            console.log(`[Kafka Bridge] booking:escalated → supervisor-room (bookingId=${event.bookingId})`);
-            break;
+              console.log(`[Kafka Bridge] booking:escalated → supervisor-room (${event.bookingId})`);
+              break;
+          }
+        } catch (emitErr) {
+          console.error('[Kafka Bridge] Socket emit error on topic', topic, ':', emitErr.message);
+          // Non-fatal — continue processing next message
         }
       },
     });
+
   } catch (err) {
-    console.error('[Kafka Bridge] Consumer failed to start:', err.message);
-    console.error('[Kafka Bridge] Real-time booking push will NOT work until Kafka is reachable.');
-    // Non-fatal — sos-service continues running without the bridge.
-    // Retry connection every 30s.
+    console.error('[Kafka Bridge] Consumer start failed:', err.message);
+    console.error('[Kafka Bridge] Retrying in 30 seconds…');
     setTimeout(() => startPorterEventsConsumer(io), 30000);
   }
+
+  // Handle graceful shutdown
+  const shutdown = async () => {
+    try { await consumer.disconnect(); } catch { /* ignore */ }
+  };
+  process.on('SIGTERM', shutdown);
+  process.on('SIGINT',  shutdown);
 }
 
 module.exports = { startPorterEventsConsumer };

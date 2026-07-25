@@ -297,8 +297,95 @@ public class PorterService {
         return porterRepository.findByIsOnlineTrueAndIsActiveTrue();
     }
 
+    // ── Offline porters for manual escalation dispatch ─────────────────────
+    // Online porters already get a 15s auto-accept window before a booking
+    // escalates to the supervisor queue — if they didn't take it there,
+    // offering them again here is redundant. The manual-assign pool should
+    // be the offline, active porters physically on duty without the app
+    // open, who can only be dispatched by phone/radio.
+    public List<Porter> getOfflinePorters() {
+        return porterRepository.findByIsOnlineFalseAndIsActiveTrue();
+    }
+
     public List<Porter> getAllPorters() {
         return porterRepository.findByIsActiveTrue();
+    }
+
+    /**
+     * Active (ACCEPTED/IN_PROGRESS) bookings currently held by offline
+     * porters, for the supervisor's "Manually Assigned Jobs" view.
+     */
+    public List<Map<String, Object>> getActiveOfflinePorterAssignments() {
+        List<Object[]> rows = bookingRepository.findActiveBookingsForOfflinePortersRaw();
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Object[] r : rows) {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("id", r[0]);
+            m.put("bookingReference", r[1]);
+            m.put("status", r[2]);
+            m.put("serviceType", r[3]);
+            m.put("pickupLocation", r[4]);
+            m.put("destination", r[5]);
+            m.put("passengerName", r[6]);
+            m.put("passengerMobile", r[7]);
+            m.put("totalAmount", r[8]);
+            m.put("paymentMethod", r[9]);
+            m.put("acceptanceTime", r[10]);
+            m.put("startTime", r[11]);
+            m.put("porterId", r[12]);
+            m.put("porterName", r[13]);
+            m.put("porterPhone", r[14]);
+            m.put("porterBadge", r[15]);
+            result.add(m);
+        }
+        return result;
+    }
+
+    /**
+     * Supervisor marks a manually-dispatched job complete on behalf of a
+     * porter who has no app access (that's the whole reason they were
+     * manually dispatched in the first place — they can't call
+     * /bookings/{id}/complete themselves).
+     *
+     * Unlike the porter's own completeService(), this doesn't require
+     * IN_PROGRESS specifically — a supervisor confirming completion by
+     * phone might be told the job finished even if the porter (with no
+     * app) never had a way to trigger the ACCEPTED→IN_PROGRESS PIN step.
+     * Either ACCEPTED or IN_PROGRESS is accepted as the starting state.
+     */
+    @Transactional
+    public PorterBooking supervisorCompleteBooking(UUID bookingId, UUID supervisorId) {
+        PorterBooking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new RuntimeException("Booking not found"));
+
+        if (!List.of("ACCEPTED", "IN_PROGRESS").contains(booking.getStatus())) {
+            throw new RuntimeException("Booking is not active (status: " + booking.getStatus() + ")");
+        }
+        if (booking.getPorterId() == null) {
+            throw new RuntimeException("Booking has no assigned porter");
+        }
+
+        Porter porter = porterRepository.findById(booking.getPorterId())
+                .orElseThrow(() -> new RuntimeException("Assigned porter not found"));
+        if (Boolean.TRUE.equals(porter.getIsOnline())) {
+            // Online porters have app access — they should complete their
+            // own jobs via the normal PIN-verified flow. This endpoint is
+            // specifically the offline-porter fallback.
+            throw new RuntimeException("Porter is online — ask them to complete the job from their app");
+        }
+
+        booking.setStatus("COMPLETED");
+        booking.setCompletionTime(Instant.now());
+        booking = bookingRepository.save(booking);
+
+        porter.setTotalServices(porter.getTotalServices() + 1);
+        porterRepository.save(porter);
+
+        log.info("Supervisor {} marked booking {} complete on behalf of offline porter {}",
+                supervisorId, bookingId, porter.getId());
+
+        eventProducer.publishBookingCompleted(booking);
+        return booking;
     }
 
     public Porter getPorterByUserId(UUID userId) {

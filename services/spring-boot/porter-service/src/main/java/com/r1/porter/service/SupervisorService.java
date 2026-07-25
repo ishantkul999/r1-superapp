@@ -59,13 +59,20 @@ public class SupervisorService {
                 .build();
     }
 
-    // ── Available porters (online + no active job) ────────────────────────────
+    // ── Available porters for manual escalation dispatch ────────────────────
+    // FIX: this previously returned ONLINE porters. But online porters
+    // (app open, capable of auto-accepting) already had a 15-second window
+    // to accept the booking before it escalated to the supervisor queue —
+    // if they didn't take it, offering them again here is redundant. The
+    // supervisor's manual-assign pool should be the OFFLINE, active porters
+    // physically on duty who don't have the app open and can only be
+    // dispatched by radio/phone call.
 
     public List<Porter> getAvailablePorters() {
-        List<Porter> online = porterRepository.findByIsOnlineTrueAndIsActiveTrue();
+        List<Porter> offline = porterRepository.findByIsOnlineFalseAndIsActiveTrue();
 
         // Filter out porters who already have an ACCEPTED or IN_PROGRESS booking
-        return online.stream()
+        return offline.stream()
                 .filter(p -> bookingRepository.findActiveBookingsByPorter(p.getId()).isEmpty())
                 .collect(Collectors.toList());
     }
@@ -97,3 +104,4 @@ public class SupervisorService {
         return booking;
     }
 }
+

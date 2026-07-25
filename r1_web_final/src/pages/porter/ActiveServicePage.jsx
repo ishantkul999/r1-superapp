@@ -1,45 +1,100 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../lib/api.js';
 
-// ── Active Service ────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// ROOT CAUSE FIXED IN THIS FILE:
+//
+// The previous version called endpoints that DO NOT EXIST on the backend:
+//   POST /api/porter/jobs/{id}/verify-pin   → 404 (no such route)
+//   PUT  /api/porter/jobs/{id}/status        → 404 (no such route)
+//   POST /api/porter/jobs/{id}/cod-collected → 404 (no such route)
+// and read fields that don't exist on PorterBooking (fromLocation, toLocation,
+// bookingId, amount, paymentMode).
+//
+// Because every action silently failed (caught with an empty `catch {}`),
+// a porter could accept a job but never actually start or complete it —
+// the booking stayed ACCEPTED/IN_PROGRESS forever. That's why porters kept
+// getting "Porter already has an active booking" on every future accept
+// attempt: their previous job was never actually finished.
+//
+// CORRECT backend contract:
+//   GET  /api/porter/active-job                → PorterBooking | 204 | 404
+//   POST /api/porter/bookings/{id}/start        body: { pin }  → verifies the
+//        service PIN AND moves ACCEPTED → IN_PROGRESS in one call (there is
+//        no separate verify-pin step on the backend)
+//   POST /api/porter/bookings/{id}/complete     → IN_PROGRESS → COMPLETED
+//   There is no cod-collected endpoint — COD confirmation is a client-side
+//   gate only, same as before, just no longer calling a dead endpoint.
+// ─────────────────────────────────────────────────────────────────────────────
+
+function extractErr(err, fb = 'Something went wrong') {
+  const d = err?.response?.data;
+  if (!d) return err?.message || fb;
+  if (typeof d.error === 'string')   return d.error;
+  if (typeof d.message === 'string') return d.message;
+  if (typeof d === 'string')         return d;
+  return fb;
+}
+
+const SVC_LABEL = {
+  LUGGAGE_ONLY: 'Luggage Porter', LUGGAGE_BARROW: 'Luggage Barrow',
+  WHEELCHAIR_ONLY: 'Wheelchair Assistance', WHEELCHAIR_STRETCHER: 'Stretcher/Bed Chair',
+  COMBINED: 'Combined — Luggage + Wheelchair',
+};
+
 export default function ActiveServicePage() {
   const [activeJob, setActiveJob] = useState(null);
   const [loading, setLoading] = useState(true);
   const [pin, setPin] = useState('');
   const [pinError, setPinError] = useState('');
-  const [verifying, setVerifying] = useState(false);
-  const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [starting, setStarting] = useState(false);
+  const [completing, setCompleting] = useState(false);
+  const [codCollected, setCodCollected] = useState(false);
+  const [banner, setBanner] = useState(null);
 
-  useEffect(() => {
-    api.get('/api/porter/active-job').then(r => setActiveJob(r.data)).catch(() => {}).finally(() => setLoading(false));
-  }, []);
+  const flash = (type, msg) => { setBanner({ type, msg: String(msg) }); setTimeout(() => setBanner(null), 6000); };
+
+  const load = () => {
+    setLoading(true);
+    api.get('/api/porter/active-job')
+      .then(r => setActiveJob(r.data && Object.keys(r.data).length ? r.data : null))
+      .catch(() => setActiveJob(null))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(load, []);
+
+  // Starting a service ALSO verifies the PIN — there is no separate step.
+  const startService = async () => {
+    if (pin.length !== 4) { setPinError('Enter 4-digit PIN'); return; }
+    setStarting(true); setPinError('');
+    try {
+      const { data } = await api.post(`/api/porter/bookings/${activeJob.id}/start`, { pin });
+      setActiveJob(data);
+      setPin('');
+    } catch (err) {
+      setPinError(extractErr(err, 'Incorrect PIN — ask the passenger again'));
+    } finally {
+      setStarting(false);
+    }
+  };
+
+  const completeService = async () => {
+    setCompleting(true);
+    try {
+      const { data } = await api.post(`/api/porter/bookings/${activeJob.id}/complete`);
+      setActiveJob(data);
+      flash('success', 'Job completed! Great work.');
+      setTimeout(load, 1500); // refresh -> should show "No Active Job" once completed
+    } catch (err) {
+      flash('error', extractErr(err, 'Could not mark job as completed'));
+    } finally {
+      setCompleting(false);
+    }
+  };
 
   const STATE_STEPS = ['ACCEPTED', 'IN_PROGRESS', 'COMPLETED'];
   const currentIdx = STATE_STEPS.indexOf(activeJob?.status);
-
-  const verifyPin = async () => {
-    if (pin.length !== 4) { setPinError('Enter 4-digit PIN'); return; }
-    setVerifying(true); setPinError('');
-    try {
-      await api.post(`/api/porter/jobs/${activeJob.id}/verify-pin`, { pin });
-      setActiveJob(j => ({ ...j, pinVerified: true }));
-    } catch { setPinError('Incorrect PIN. Ask the passenger again.'); } finally { setVerifying(false); }
-  };
-
-  const updateStatus = async (status) => {
-    setUpdatingStatus(true);
-    try {
-      const { data } = await api.put(`/api/porter/jobs/${activeJob.id}/status`, { status });
-      setActiveJob(data);
-    } catch {} finally { setUpdatingStatus(false); }
-  };
-
-  const collectCod = async () => {
-    try {
-      await api.post(`/api/porter/jobs/${activeJob.id}/cod-collected`);
-      setActiveJob(j => ({ ...j, codCollected: true }));
-    } catch {}
-  };
 
   if (loading) return <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}><div className="spinner spinner-lg" /></div>;
 
@@ -53,6 +108,14 @@ export default function ActiveServicePage() {
 
   return (
     <div style={{ maxWidth: 580, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 18 }}>
+
+      {banner && (
+        <div className={`alert alert-${banner.type}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span>{banner.msg}</span>
+          <button onClick={() => setBanner(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', opacity: 0.6 }}>✕</button>
+        </div>
+      )}
+
       {/* Status progress */}
       <div className="card">
         <h3 style={{ marginBottom: 16 }}>Job Progress</h3>
@@ -86,33 +149,44 @@ export default function ActiveServicePage() {
       <div className="card">
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 14 }}>
           <div>
-            <h4>{activeJob.serviceType || 'Porter Service'}</h4>
-            <div style={{ fontSize: '0.786rem', color: 'var(--color-text-muted)' }}>#{activeJob.bookingId?.slice(-8)}</div>
+            <h4>{SVC_LABEL[activeJob.serviceType] || activeJob.serviceType || 'Porter Service'}</h4>
+            <div style={{ fontSize: '0.786rem', color: 'var(--color-text-muted)' }}>
+              {activeJob.bookingReference || `#${activeJob.id?.slice(-8)}`}
+            </div>
           </div>
           <span className="badge badge-primary badge-lg">{activeJob.status}</span>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, fontSize: '0.857rem' }}>
           <div style={{ background: 'var(--color-surface)', padding: '10px 12px', borderRadius: 8 }}>
             <div style={{ fontSize: '0.714rem', color: 'var(--color-text-muted)', marginBottom: 2 }}>FROM</div>
-            <div style={{ fontWeight: 600 }}>📍 {activeJob.fromLocation}</div>
+            <div style={{ fontWeight: 600 }}>📍 {activeJob.pickupLocation || '—'}</div>
           </div>
           <div style={{ background: 'var(--color-surface)', padding: '10px 12px', borderRadius: 8 }}>
             <div style={{ fontSize: '0.714rem', color: 'var(--color-text-muted)', marginBottom: 2 }}>TO</div>
-            <div style={{ fontWeight: 600 }}>🏁 {activeJob.toLocation}</div>
+            <div style={{ fontWeight: 600 }}>🏁 {activeJob.destination || '—'}</div>
           </div>
         </div>
+        {activeJob.passengerName && (
+          <div style={{ marginTop: 10, fontSize: '0.857rem', display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+            <span><span style={{ color: 'var(--color-text-muted)' }}>Passenger: </span><strong>{activeJob.passengerName}</strong></span>
+            {activeJob.passengerMobile && <a href={`tel:${activeJob.passengerMobile}`} style={{ color: 'var(--color-primary)', fontWeight: 600 }}>{activeJob.passengerMobile}</a>}
+          </div>
+        )}
         <div style={{ marginTop: 12, padding: '10px 12px', background: 'rgba(27,58,107,0.04)', borderRadius: 8, display: 'flex', justifyContent: 'space-between' }}>
           <span style={{ fontSize: '0.857rem', color: 'var(--color-text-muted)' }}>Earning</span>
-          <span style={{ fontWeight: 700, color: 'var(--color-primary)', fontSize: '1.143rem' }}>₹{activeJob.amount}</span>
+          <span style={{ fontWeight: 700, color: 'var(--color-primary)', fontSize: '1.143rem' }}>
+            ₹{Number(activeJob.totalAmount || activeJob.baseAmount || 0).toFixed(2)}
+            {activeJob.paymentMethod === 'COD' && <span className="badge badge-warning" style={{ marginLeft: 8, fontSize: '0.686rem' }}>COD</span>}
+          </span>
         </div>
       </div>
 
-      {/* PIN verification */}
-      {activeJob.status === 'ACCEPTED' && !activeJob.pinVerified && (
+      {/* PIN verification + start — ONE call on the backend (start = verify + begin) */}
+      {activeJob.status === 'ACCEPTED' && (
         <div className="card" style={{ border: '2px solid var(--color-warning-light)' }}>
-          <h4 style={{ marginBottom: 6 }}>🔐 Verify Passenger PIN</h4>
+          <h4 style={{ marginBottom: 6 }}>🔐 Start Service</h4>
           <p style={{ fontSize: '0.857rem', color: 'var(--color-text-muted)', marginBottom: 14 }}>
-            Ask the passenger for their 4-digit booking PIN to start the service.
+            Ask the passenger for their 4-digit service PIN to begin.
           </p>
           <div style={{ display: 'flex', gap: 10 }}>
             <input
@@ -122,50 +196,44 @@ export default function ActiveServicePage() {
               maxLength={4}
               placeholder="4-digit PIN"
               value={pin}
-              onChange={e => setPin(e.target.value.replace(/\D/,'').slice(0,4))}
+              onChange={e => setPin(e.target.value.replace(/\D/, '').slice(0, 4))}
               style={{ flex: 1, fontFamily: 'monospace', fontSize: '1.286rem', letterSpacing: '0.3em', textAlign: 'center' }}
             />
-            <button className="btn btn-primary" onClick={verifyPin} disabled={verifying || pin.length !== 4}>
-              {verifying ? <span className="spinner" /> : 'Verify'}
+            <button className="btn btn-primary" onClick={startService} disabled={starting || pin.length !== 4}>
+              {starting ? <span className="spinner" /> : '▶ Start'}
             </button>
           </div>
           {pinError && <div className="alert alert-error" style={{ marginTop: 10 }}>⚠️ {pinError}</div>}
         </div>
       )}
 
-      {/* COD collection */}
-      {activeJob.paymentMode === 'COD' && !activeJob.codCollected && activeJob.status === 'IN_PROGRESS' && (
+      {/* COD collection — client-side confirmation gate only; the backend
+          has no dedicated cod-collected endpoint */}
+      {activeJob.paymentMethod === 'COD' && !codCollected && activeJob.status === 'IN_PROGRESS' && (
         <div className="alert alert-warning">
           <div>
             <strong>💵 COD Collection Required</strong>
             <div style={{ marginTop: 4, fontSize: '0.857rem' }}>
-              Collect ₹{activeJob.amount} in cash from the passenger before completing the job.
+              Collect ₹{Number(activeJob.totalAmount || 0).toFixed(2)} in cash from the passenger before completing the job.
             </div>
-            <button className="btn btn-primary btn-sm" onClick={collectCod} style={{ marginTop: 10 }}>
-              ✓ Cash Collected — ₹{activeJob.amount}
+            <button className="btn btn-primary btn-sm" onClick={() => setCodCollected(true)} style={{ marginTop: 10 }}>
+              ✓ Cash Collected — ₹{Number(activeJob.totalAmount || 0).toFixed(2)}
             </button>
           </div>
         </div>
       )}
 
-      {/* Action buttons */}
-      <div>
-        {activeJob.status === 'ACCEPTED' && activeJob.pinVerified && (
-          <button className="btn btn-primary btn-lg" onClick={() => updateStatus('IN_PROGRESS')} disabled={updatingStatus} style={{ width: '100%' }}>
-            {updatingStatus ? <><span className="spinner" /> Updating…</> : '▶ Start Service'}
-          </button>
-        )}
-        {activeJob.status === 'IN_PROGRESS' && (
-          <button
-            className="btn btn-secondary btn-lg"
-            onClick={() => updateStatus('COMPLETED')}
-            disabled={updatingStatus || (activeJob.paymentMode === 'COD' && !activeJob.codCollected)}
-            style={{ width: '100%' }}
-          >
-            {updatingStatus ? <><span className="spinner" /> Updating…</> : '✓ Mark as Completed'}
-          </button>
-        )}
-      </div>
+      {/* Complete */}
+      {activeJob.status === 'IN_PROGRESS' && (
+        <button
+          className="btn btn-secondary btn-lg"
+          onClick={completeService}
+          disabled={completing || (activeJob.paymentMethod === 'COD' && !codCollected)}
+          style={{ width: '100%' }}
+        >
+          {completing ? <><span className="spinner" /> Updating…</> : '✓ Mark as Completed'}
+        </button>
+      )}
     </div>
   );
 }

@@ -3,52 +3,22 @@ import useAuthStore from '../stores/authStore.js';
 
 const SOS_SOCKET_URL = import.meta.env.VITE_SOS_SOCKET_URL || 'http://localhost:3006';
 
-let socketIoModule = null;
-
-async function getSocketIo() {
-  if (!socketIoModule) {
-    try {
-      const mod = await import('socket.io-client');
-      socketIoModule = mod.io || mod.default;
-    } catch {
-      console.warn('[Realtime] socket.io-client not installed. Run: npm install socket.io-client');
-      return null;
-    }
+// Lazy-load socket.io-client to avoid breaking pages if it's not installed
+let cachedIo = null;
+async function getIo() {
+  if (cachedIo) return cachedIo;
+  try {
+    const mod = await import('socket.io-client');
+    cachedIo = mod.io || mod.default;
+    return cachedIo;
+  } catch (e) {
+    console.warn('[Realtime] socket.io-client not found. Run: npm install socket.io-client');
+    return null;
   }
-  return socketIoModule;
 }
 
-/**
- * useRealtimeBookings
- *
- * DROP AT: src/hooks/useRealtimeBookings.js
- *
- * Connects to sos-service Socket.io (port 3006) and joins the correct room
- * based on the current user's role. Emits the join event that socket.handlers.js
- * now handles.
- *
- * Usage:
- *   // In SupervisorDashboard.jsx or UnassignedQueuePage.jsx:
- *   useRealtimeBookings({
- *     onNewBooking:  (event) => setQueue(q => [event, ...q]),
- *     onEscalated:  (event) => flash('warning', `${event.bookingReference} needs manual assignment`),
- *     onAssigned:   (event) => setQueue(q => q.filter(b => b.id !== event.bookingId)),
- *   });
- *
- *   // In PorterDashboard.jsx:
- *   useRealtimeBookings({
- *     porterId: dashboard?.porterId,
- *     onJobAssigned: () => refresh(),
- *   });
- *
- *   // In UserDashboard.jsx / BookingsPage.jsx:
- *   useRealtimeBookings({
- *     onBookingStatus:    (b) => setStatus(b.statusMessage),
- *     onBookingAssigned:  (b) => setStatus('Porter assigned — on the way!'),
- *     onBookingCompleted: () => setStatus('Service completed'),
- *   });
- */
 export default function useRealtimeBookings({
+  porterId,
   onNewBooking,
   onEscalated,
   onAssigned,
@@ -56,31 +26,30 @@ export default function useRealtimeBookings({
   onBookingStatus,
   onBookingAssigned,
   onBookingCompleted,
-  porterId,
+  onNotification,
 } = {}) {
   const { user, role } = useAuthStore();
   const socketRef = useRef(null);
 
   useEffect(() => {
     let socket = null;
-    let active = true;
+    let mounted = true;
 
     (async () => {
-      const io = await getSocketIo();
-      if (!io || !active) return;
+      const io = await getIo();
+      if (!io || !mounted) return;
 
       socket = io(SOS_SOCKET_URL, {
         transports: ['websocket', 'polling'],
         reconnection: true,
-        reconnectionAttempts: 8,
-        reconnectionDelay: 3000,
+        reconnectionAttempts: 10,
+        reconnectionDelay: 2000,
         timeout: 10000,
       });
       socketRef.current = socket;
 
       socket.on('connect', () => {
-        // Emit the correct join event based on role
-        // socket.handlers.js now handles all three of these
+        // Join the correct room based on role
         if (['SUPERVISOR', 'STATION_CONTROL_ROOM', 'SUPERADMIN'].includes(role)) {
           socket.emit('join:supervisor', { userId: user?.id, role });
         }
@@ -93,32 +62,49 @@ export default function useRealtimeBookings({
       });
 
       socket.on('joined', ({ room }) => {
-        console.log(`[Realtime] Joined room: ${room}`);
+        console.log('[Realtime] Joined room:', room);
       });
 
-      // Supervisor events
-      if (onNewBooking)  socket.on('booking:new',              onNewBooking);
-      if (onEscalated)   socket.on('booking:escalated',        onEscalated);
+      // ── Supervisor events ───────────────────────────────────────────────────
+      // Fired when a new booking is created (porter.booked Kafka → Kafka bridge)
+      if (onNewBooking)  socket.on('booking:new',                onNewBooking);
+
+      // Fired when 15s timer expires with no porter acceptance
+      if (onEscalated)   socket.on('booking:escalated',          onEscalated);
+
+      // Fired when porter accepts (removed from unassigned queue)
       if (onAssigned)    socket.on('booking:removed-from-queue', onAssigned);
 
-      // Porter events
-      if (onJobAssigned) socket.on('job:assigned',             onJobAssigned);
+      // ── Porter events ───────────────────────────────────────────────────────
+      // Fired when supervisor manually assigns a job to this porter
+      if (onJobAssigned) socket.on('job:assigned',               onJobAssigned);
 
-      // User/passenger events
+      // ── User / passenger events ─────────────────────────────────────────────
       if (onBookingStatus)    socket.on('booking:status',    onBookingStatus);
       if (onBookingAssigned)  socket.on('booking:assigned',  onBookingAssigned);
       if (onBookingCompleted) socket.on('booking:completed', onBookingCompleted);
 
-      socket.on('connect_error', (err) => {
+      // Pushed by sos-service's notification-events Kafka bridge the
+      // instant notification-service persists a new notification for this
+      // user — this is what lets the bell update without waiting for the
+      // next poll.
+      if (onNotification) socket.on('notification:new', onNotification);
+
+      socket.on('connect_error', err => {
         console.warn('[Realtime] Connection error:', err.message);
+      });
+
+      socket.on('disconnect', reason => {
+        console.log('[Realtime] Disconnected:', reason);
       });
     })();
 
     return () => {
-      active = false;
-      if (socket) { socket.disconnect(); }
+      mounted = false;
+      if (socket) socket.disconnect();
       socketRef.current = null;
     };
+  // Re-run only when role/userId/porterId changes — NOT on callback changes
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [role, user?.id, porterId]);
 

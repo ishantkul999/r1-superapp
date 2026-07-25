@@ -24,6 +24,13 @@ public interface PorterRepository extends JpaRepository<Porter, UUID> {
 
     List<Porter> findByIsOnlineTrueAndIsActiveTrue();
 
+    /** Active porters who are NOT online — the manual-dispatch pool for
+     *  supervisor escalation. These are porters without the app open who
+     *  can only be assigned by radio/phone, since the 15s auto-accept
+     *  window is only visible to online porters and they already had
+     *  their chance before a booking escalates. */
+    List<Porter> findByIsOnlineFalseAndIsActiveTrue();
+
     List<Porter> findByIsActiveTrueAndStationId(UUID stationId);
 
     boolean existsByUserId(UUID userId);
@@ -47,4 +54,3 @@ public interface PorterRepository extends JpaRepository<Porter, UUID> {
     @Query("SELECT COUNT(p) FROM Porter p WHERE p.isActive = true")
     long countActive();
 }
-

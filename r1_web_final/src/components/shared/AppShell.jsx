@@ -6,6 +6,8 @@ import NotificationDropdown from './NotificationDropdown.jsx';
 import useAuthStore from '../../stores/authStore.js';
 import { ROLES } from '../../config/constants.js';
 import BottomNav from './BottomNav.jsx';
+import api from '../../lib/api.js';
+import useRealtimeBookings from '../../hooks/useRealTimeBookings.js';
 
 const PAGE_TITLES = {
   // User
@@ -59,6 +61,27 @@ export default function AppShell() {
   const { role } = useAuthStore();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+
+  // FIX: the bell badge below was previously a static empty <span> with no
+  // dynamic count at all — it never reflected real unread state. Notification
+  // state now lives here (not duplicated inside NotificationDropdown), fetched
+  // once and kept live via the same "notification:new" socket push used
+  // inside the dropdown, so the badge updates instantly even while the
+  // dropdown is closed.
+  const [notifs, setNotifs] = useState([]);
+  const unreadCount = notifs.filter(n => !n.isRead).length;
+
+  useEffect(() => {
+    api.get('/api/notifications')
+      .then(r => setNotifs(Array.isArray(r.data) ? r.data : []))
+      .catch(() => {});
+  }, []);
+
+  useRealtimeBookings({
+    onNotification: (incoming) => {
+      setNotifs(prev => (prev.some(n => n.id === incoming.id) ? prev : [incoming, ...prev]));
+    },
+  });
 
   const sidebarW  = sidebarCollapsed ? 64 : 248;
   const isUserRole = role === ROLES.USER;
@@ -114,10 +137,16 @@ export default function AppShell() {
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/>
                 </svg>
-                <span className="topbar-badge" />
+                {unreadCount > 0 && (
+                  <span className="topbar-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>
+                )}
               </button>
               {notifOpen && (
-                <NotificationDropdown onClose={() => setNotifOpen(false)} />
+                <NotificationDropdown
+                  notifs={notifs}
+                  setNotifs={setNotifs}
+                  onClose={() => setNotifOpen(false)}
+                />
               )}
             </div>
 

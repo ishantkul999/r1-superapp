@@ -46,9 +46,12 @@ export default function AiChatPage() {
     setMessages(m => [...m, userMsg]);
     setLoading(true);
     try {
-      const { data } = await api.post('/api/ai/chat', {
+      // CORRECT endpoint: POST /api/ai/assistant/chat
+      // (was POST /api/ai/chat — the gateway only routes /api/ai/assistant/**
+      // and /api/ai/planner/**, so this was 404ing silently and always
+      // falling into the catch block's generic "trouble connecting" message)
+      const { data } = await api.post('/api/ai/assistant/chat', {
         message: userText,
-        sessionId,
         language: lang,
       });
       const botMsg = {
@@ -57,7 +60,9 @@ export default function AiChatPage() {
         text: data.response || data.message,
         timestamp: new Date(),
         intent: data.intent,
-        sources: data.sources,
+        // Backend returns a single "source" string (e.g. "FAQ" / "AI"),
+        // not a "sources" array.
+        source: data.source,
       };
       setMessages(m => [...m, botMsg]);
     } catch (err) {
@@ -104,10 +109,6 @@ export default function AiChatPage() {
           }}>🤖</div>
           <div>
             <div style={{ fontWeight: 600, fontSize: '0.929rem' }}>R1 AI Assistant</div>
-            <div style={{ fontSize: '0.714rem', color: 'var(--color-success)', display: 'flex', alignItems: 'center', gap: 4 }}>
-              <div style={{ width: 6, height: 6, background: 'var(--color-success)', borderRadius: '50%', animation: 'pulse 2s infinite' }} />
-              Online · Spring AI + RAG
-            </div>
           </div>
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
@@ -170,9 +171,9 @@ export default function AiChatPage() {
               }}>
                 {msg.text}
               </div>
-              {msg.sources && msg.sources.length > 0 && (
+              {msg.source && (
                 <div style={{ marginTop: 4, fontSize: '0.714rem', color: 'var(--color-text-muted)' }}>
-                  📚 Sources: {msg.sources.join(', ')}
+                  📚 Source: {msg.source}
                 </div>
               )}
               <div style={{ fontSize: '0.643rem', color: 'var(--color-text-muted)', marginTop: 4, textAlign: msg.role === 'user' ? 'right' : 'left' }}>

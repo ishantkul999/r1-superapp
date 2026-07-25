@@ -58,13 +58,22 @@ public class SupervisorController {
         return ResponseEntity.ok(porterService.getUnassignedPendingBookings());
     }
 
-    /** GET /api/supervisor/porters/available */
+    /**
+     * GET /api/supervisor/porters/available
+     *
+     * FIX: this was calling porterService.getOnlinePorters(). But online
+     * porters (app open, capable of auto-accepting) already had a 15s
+     * window to accept before the booking escalated here — offering them
+     * again is redundant. The manual-assign pool for escalations should be
+     * offline, active porters who don't have the app open and can only be
+     * dispatched by phone/radio.
+     */
     @GetMapping("/porters/available")
     public ResponseEntity<List<Porter>> availablePorters(
             @RequestHeader("X-User-Role") String role) {
         if (!SUPERVISOR_ROLES.contains(role)) return ResponseEntity.status(403).build();
-        List<Porter> online = porterService.getOnlinePorters();
-        List<Porter> available = online.stream()
+        List<Porter> offline = porterService.getOfflinePorters();
+        List<Porter> available = offline.stream()
                 .filter(p -> porterService.getActiveJob(p.getUserId()).isEmpty())
                 .toList();
         return ResponseEntity.ok(available);
@@ -89,6 +98,45 @@ public class SupervisorController {
             PorterBooking booking = porterService.acceptBooking(bookingId, porterId);
             log.info("Supervisor manually assigned booking {} to porter {} (offline fallback)",
                     bookingId, porterId);
+            return ResponseEntity.ok(booking);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /**
+     * GET /api/supervisor/manual-assignments/active
+     *
+     * Active (ACCEPTED/IN_PROGRESS) jobs currently held by OFFLINE porters —
+     * i.e. jobs this supervisor (or another) manually dispatched to a
+     * porter without app access. Backs the "Manually Assigned Jobs" panel
+     * so a supervisor can mark one complete on the porter's behalf once
+     * it's actually finished (that porter has no way to call
+     * /bookings/{id}/complete themselves).
+     */
+    @GetMapping("/manual-assignments/active")
+    public ResponseEntity<List<Map<String, Object>>> activeManualAssignments(
+            @RequestHeader("X-User-Role") String role) {
+        if (!SUPERVISOR_ROLES.contains(role)) return ResponseEntity.status(403).build();
+        return ResponseEntity.ok(porterService.getActiveOfflinePorterAssignments());
+    }
+
+    /**
+     * POST /api/supervisor/bookings/{bookingId}/complete
+     *
+     * Marks a job complete on behalf of an offline porter who has no app
+     * access. If the assigned porter is actually online, this is rejected —
+     * they should complete their own job via the normal PIN-verified flow.
+     */
+    @PostMapping("/bookings/{bookingId}/complete")
+    public ResponseEntity<?> completeOnBehalfOfPorter(
+            @PathVariable UUID bookingId,
+            @RequestHeader("X-User-Role") String role,
+            @RequestHeader("X-User-Id")   String supervisorId) {
+        if (!SUPERVISOR_ROLES.contains(role)) return ResponseEntity.status(403).build();
+        try {
+            PorterBooking booking = porterService.supervisorCompleteBooking(
+                    bookingId, UUID.fromString(supervisorId));
             return ResponseEntity.ok(booking);
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
@@ -164,4 +212,3 @@ public class SupervisorController {
         }
     }
 }
-

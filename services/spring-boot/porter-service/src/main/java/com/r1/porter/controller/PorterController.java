@@ -81,16 +81,27 @@ public class PorterController {
     }
 
     @PostMapping("/bookings/{bookingId}/accept")
-    public ResponseEntity<PorterBooking> acceptBooking(
+    public ResponseEntity<?> acceptBooking(
             @PathVariable UUID bookingId,
             @RequestHeader("X-User-Id")   String userId,
             @RequestHeader("X-User-Role") String role) {
         if (!"PORTER".equals(role)) return ResponseEntity.status(403).build();
+        Porter porter;
         try {
-            Porter porter = porterService.getPorterByUserId(UUID.fromString(userId));
+            porter = porterService.getPorterByUserId(UUID.fromString(userId));
+        } catch (RuntimeException e) {
+            log.warn("Accept booking {}: no porter profile for userId={}", bookingId, userId);
+            return ResponseEntity.status(404).body(Map.of(
+                    "error", "Porter profile not found. Contact your supervisor.",
+                    "code", "PORTER_NOT_REGISTERED"));
+        }
+        try {
             return ResponseEntity.ok(porterService.acceptBooking(bookingId, porter.getId()));
         } catch (RuntimeException e) {
-            return ResponseEntity.status(404).body(null);
+            log.warn("Accept booking {} failed for porter {}: {}", bookingId, porter.getId(), e.getMessage());
+            // Distinguish "already gone" (someone else took it / it was cancelled)
+            // from genuine 404s so the porter app can show an accurate message.
+            return ResponseEntity.status(409).body(Map.of("error", e.getMessage()));
         }
     }
 
