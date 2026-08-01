@@ -7,21 +7,6 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
-/**
- * REPLACE the existing PorterBooking.java entirely.
- *
- * DROP AT:
- *   services/spring-boot/porter-service/src/main/java/com/r1/porter/entity/PorterBooking.java
- *
- * Changes from original:
- *   + pnrNumber          — PNR number (mandatory in booking form)
- *   + seatBerth          — seat/berth number (optional)
- *   + passengerName      — full name of passenger being assisted
- *   + passengerMobile    — mobile number of passenger
- *   + passengerEmail     — email of passenger
- *
- * All other fields are unchanged from the original entity.
- */
 @Entity
 @Table(name = "porter_bookings", schema = "porter_svc")
 @Data
@@ -92,20 +77,12 @@ public class PorterBooking {
     @Column(name = "assistance_type")
     private String assistanceType;
 
-    // ── Passenger details (NEW — sent directly to porter/supervisor) ──────────
-    // These fields autofill from the passenger's profile at booking time.
-    // They are embedded in the booking so the porter/supervisor sees them
-    // without needing to cross-reference another service.
-
-    /** NEW — Full name of the passenger being assisted (e.g. "Mr. Ramesh Patel") */
     @Column(name = "passenger_name")
     private String passengerName;
 
-    /** NEW — Mobile number of passenger (e.g. "+919876543210") */
     @Column(name = "passenger_mobile")
     private String passengerMobile;
 
-    /** NEW — Email of passenger */
     @Column(name = "passenger_email")
     private String passengerEmail;
 

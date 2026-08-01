@@ -46,18 +46,8 @@ app.use((err, req, res, next) => {
 // ── Socket Handlers ─────────────────────────────────────────────────
 setupSocketHandlers(io);
 
-// ── Kafka → Socket.io Bridge (NEW) ────────────────────────────────────
-// Listens to porter.booked / porter.assigned / porter.completed /
-// supervisor.escalation Kafka topics published by porter-service, and
-// re-broadcasts them as Socket.io events to the supervisor/porter/user rooms.
-// This makes new bookings, assignments, and 15s-timeout escalations show up
-// instantly on the Supervisor and Porter dashboards without polling.
 startPorterEventsConsumer(io);
 
-// ── Kafka → Socket.io Bridge for Notifications (NEW) ──────────────────
-// Listens to notification.created (published by notification-service
-// after persisting each notification) and pushes it live to the user's
-// "user:{userId}" room, so the notification bell updates instantly.
 startNotificationEventsConsumer(io);
 
 server.listen(PORT, () => console.log(`sos-service running on :${PORT}`));

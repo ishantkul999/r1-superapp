@@ -15,38 +15,6 @@ import org.springframework.web.client.RestTemplate;
 import java.util.List;
 import java.util.Map;
 
-/**
- * GroqChatClient — handles:
- *   1. CHAT via Groq API (llama3-8b-8192) — replaces OpenAI gpt-4o-mini
- *   2. EMBEDDINGS via Ollama (nomic-embed-text) — replaces OpenAI text-embedding-3-small
- *
- * WHY GROQ FOR CHAT:
- *   - Free tier available at console.groq.com (no credit card for basic use)
- *   - 10–25× faster than GPT-4o-mini
- *   - OpenAI-compatible request/response format
- *
- * WHY OLLAMA FOR EMBEDDINGS:
- *   - Completely free, runs locally on the same machine
- *   - nomic-embed-text produces 768-dim vectors (better than OpenAI 384-dim)
- *   - No API key, no rate limits, no internet required
- *   - Install: https://ollama.com — then: ollama pull nomic-embed-text
- *
- * SETUP:
- *   1. Install Ollama: https://ollama.com/download
- *   2. Run: ollama pull nomic-embed-text
- *   3. Ollama starts automatically on http://localhost:11434
- *   4. Get Groq key (free): https://console.groq.com
- *   5. Set env vars: GROQ_API_KEY=gsk_xxx  (OLLAMA runs without a key)
- *
- * DB MIGRATION (if switching from OpenAI 384-dim to nomic-embed-text 768-dim):
- *   If you already have stored vectors from OpenAI (384-dim), you must re-ingest
- *   all documents because dimension mismatch will crash queries.
- *   Run: ALTER TABLE ai_svc.knowledge_base ALTER COLUMN embedding TYPE vector(768);
- *   Then re-ingest via the AI Knowledge Base admin page.
- *
- *   If this is a fresh setup with no existing vectors, just update the dimension
- *   in application.yml to 768 and you're done.
- */
 @Slf4j
 @Component
 public class GroqChatClient {
@@ -113,17 +81,6 @@ public class GroqChatClient {
         }
     }
 
-    // ── Embeddings via Ollama ─────────────────────────────────────────────────
-
-    /**
-     * Generates a text embedding using Ollama (nomic-embed-text).
-     *
-     * Ollama must be running locally. It starts automatically after installation.
-     * The first call after `ollama pull nomic-embed-text` may take ~5 seconds
-     * while the model loads; subsequent calls are fast (~50ms).
-     *
-     * Returns a zero vector if Ollama is unavailable (graceful degradation).
-     */
     public float[] embed(String text) {
         Map<String, Object> body = Map.of(
                 "model",  ollamaEmbedModel,

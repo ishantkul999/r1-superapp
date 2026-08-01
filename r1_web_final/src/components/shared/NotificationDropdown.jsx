@@ -1,10 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
 import api from '../../lib/api.js';
-
-// notifs/setNotifs are now owned by AppShell (lifted up so the bell badge
-// can reflect unread count even while this dropdown is closed, and so we
-// don't open two separate socket connections doing the same job). This
-// component now just renders + acts on that shared state.
 export default function NotificationDropdown({ onClose, notifs = [], setNotifs }) {
   const ref = useRef(null);
   const [marking, setMarking] = useState(false);

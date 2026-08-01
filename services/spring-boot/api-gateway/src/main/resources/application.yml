@@ -43,6 +43,60 @@ spring:
         - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_FIRST
 
       routes:
+        - id: auth-docs
+          uri: http://${AUTH_SERVICE_HOST:localhost}:${AUTH_SERVICE_PORT:8081}
+          predicates:
+            - Path=/auth/v3/api-docs
+          filters:
+            - RewritePath=/auth/(?<segment>.*), /${segment}
+        - id: user-docs
+          uri: http://${USER_SERVICE_HOST:localhost}:${USER_SERVICE_PORT:3001}
+          predicates:
+              - Path=/user/v3/api-docs
+          filters:
+            - RewritePath=/user/(?<segment>.*), /${segment}
+        - id: porter-docs
+          uri: http://${PORTER_SERVICE_HOST:localhost}:${PORTER_SERVICE_PORT:8092}
+          predicates:
+              - Path=/porter/v3/api-docs
+          filters:
+            - RewritePath=/porter/(?<segment>.*), /${segment}
+        - id: payment-docs
+          uri: http://${PAYMENT_SERVICE_HOST:localhost}:${PAYMENT_SERVICE_PORT:8090}
+          predicates:
+              - Path=/payment/v3/api-docs
+          filters:
+            - RewritePath=/payment/(?<segment>.*), /${segment}
+        - id: notification-docs
+          uri: http://${NOTIFICATION_SERVICE_HOST:localhost}:${NOTIFICATION_SERVICE_PORT:8093}
+          predicates:
+              - Path=/notification/v3/api-docs
+          filters:
+            - RewritePath=/notification/(?<segment>.*), /${segment}
+        - id: ai-planner-docs
+          uri: http://${AI_PLANNER_HOST:localhost}:${AI_PLANNER_PORT:8087}
+          predicates:
+              - Path=/ai-planner/v3/api-docs
+          filters:
+            - RewritePath=/ai-planner/(?<segment>.*), /${segment}
+        - id: ai-assistant-docs
+          uri: http://${AI_ASSISTANT_HOST:localhost}:${AI_ASSISTANT_PORT:8088}
+          predicates:
+              - Path=/ai-assistant/v3/api-docs
+          filters:
+            - RewritePath=/ai-assistant/(?<segment>.*), /${segment}
+        - id: station-dashboard-service-docs
+          uri: http://${STATION_DASHBOARD_SERVICE_HOST:localhost}:${STATION_DASHBOARD_PORT:8094}
+          predicates:
+            - Path=/station-dashboard-service/v3/api-docs
+          filters:
+            - RewritePath=/station-dashboard-service/(?<segment>.*), /${segment}
+        - id: vendor-docs
+          uri: http://${VENDOR_SERVICE_HOST:localhost}:${VENDOR_SERVICE_PORT:3012}
+          predicates:
+              - Path=/vendor/v3/api-docs
+          filters:
+            - RewritePath=/vendor/(?<segment>.*), /${segment}
         # AUTH — no JWT filter, no rate limit on OTP endpoints
         - id: auth-service
           uri: http://${AUTH_SERVICE_HOST:localhost}:${AUTH_SERVICE_PORT:8081}
@@ -182,7 +236,6 @@ spring:
           uri: http://${VENDOR_SERVICE_HOST:localhost}:${VENDOR_SERVICE_PORT:3012}
           predicates:
             - Path=/api/vendor/**
-
   kafka:
     bootstrap-servers: ${KAFKA_BROKERS:localhost:9092}
     producer:
@@ -201,3 +254,33 @@ management:
     web:
       exposure:
         include: health,info
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    urls:
+      - name: Auth Service
+        url: /auth/v3/api-docs
+
+      - name: User Service
+        url: /user/v3/api-docs
+
+      - name: Porter Service
+        url: /porter/v3/api-docs
+
+      - name: Vendor Service
+        url: /vendor/v3/api-docs
+
+      - name: Payment Service
+        url: /payment/v3/api-docs
+
+      - name: AI Planner
+        url: /ai-planner/v3/api-docs
+
+      - name: AI Assistant
+        url: /ai-assistant/v3/api-docs
+
+      - name: Notification Service
+        url: /notification/v3/api-docs
+
+      - name: Station Dashboard Service
+        url: /station-dashboard-service/v3/api-docs

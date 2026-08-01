@@ -8,28 +8,6 @@ import org.springframework.web.client.RestTemplate;
 
 import java.util.*;
 
-/**
- * GroqClient — replaces OpenAiClient for chat inference.
- *
- * WHY GROQ:
- *   - 10–25× faster inference than GPT-4o-mini (important for station kiosk UX)
- *   - ~90% cost reduction (critical for government pilot budget)
- *   - OpenAI-compatible API format — minimal code change
- *   - llama3-8b-8192 supports English, Hindi, Gujarati adequately for station FAQ
- *
- * EMBEDDINGS still use OpenAI (text-embedding-3-small with pgvector).
- * Groq does not provide an embeddings endpoint as of Phase 1.
- *
- * ABSTRACTION: AiPlannerService references this bean by the method signatures
- * chat() and embed() — swapping back to OpenAI requires only changing @Primary
- * on the @Component or flipping the configuration flag.
- *
- * DROP AT:
- *   services/spring-boot/ai-planner/src/main/java/com/r1/aiplanner/service/GroqClient.java
- *
- * Also rename the bean reference in AiPlannerService from OpenAiClient → GroqClient
- * (or keep OpenAiClient.java as a thin wrapper that delegates to this class).
- */
 @Slf4j
 @Component
 public class GroqClient {
@@ -56,15 +34,6 @@ public class GroqClient {
 
     private final RestTemplate restTemplate = new RestTemplate();
 
-    // ── Chat via Groq ─────────────────────────────────────────────────────────
-
-    /**
-     * Sends a chat completion request to Groq.
-     * Groq uses the same request/response format as OpenAI /v1/chat/completions.
-     *
-     * @param messages  List of {role, content} message maps
-     * @return          Model's text response
-     */
     public String chat(List<Map<String, String>> messages) {
         if ("stub".equals(groqApiKey)) {
             log.info("[STUB Groq] chat() called with {} messages", messages.size());
@@ -107,19 +76,6 @@ public class GroqClient {
             return "I'm unable to generate a response at this moment. Please try again later.";
         }
     }
-
-    // ── Embed via OpenAI (pgvector requires consistent embedding model) ───────
-
-    /**
-     * Generates a text embedding using OpenAI text-embedding-3-small.
-     * This intentionally remains on OpenAI because:
-     *  1. pgvector already stores 384-dim vectors from this model
-     *  2. Groq does not offer an embeddings endpoint in Phase 1
-     *  3. Switching embedding models invalidates all stored vectors
-     *
-     * @param text  Input text to embed
-     * @return      float[] of length embeddingDimensions (384)
-     */
     public float[] embed(String text) {
         if ("stub".equals(openAiApiKey)) {
             // Deterministic stub: same text → same stub vector

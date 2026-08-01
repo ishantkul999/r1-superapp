@@ -75,9 +75,6 @@ export default function OtpVerifyPage() {
     try {
       const { data } = await api.post('/api/auth/otp/verify', { phone, otp: code });
 
-      // Backend returns flat response — handle both shapes:
-      // Shape 1: { accessToken, refreshToken, userId, phone, name, role, isNewUser }
-      // Shape 2: { user: {...}, accessToken, refreshToken }
       const user = data.user || {
         id: data.userId,
         phone: data.phone,
@@ -95,7 +92,6 @@ export default function OtpVerifyPage() {
         || 'Invalid OTP. Please try again.';
 
       setError(msg);
-      // Clear OTP boxes and refocus only on actual OTP error (not network error)
       if (err.response?.status === 401 || err.response?.status === 400) {
         setOtp(['', '', '', '', '', '']);
         setTimeout(() => inputs.current[0]?.focus(), 50);

@@ -1,12 +1,5 @@
 'use strict';
 
-/**
- * Auth middleware for Node.js services.
- * The API Gateway has already validated the JWT and injected:
- *   X-User-Id    → authenticated user's UUID
- *   X-User-Role  → authenticated user's role
- *   X-User-Phone → authenticated user's phone
- */
 function requireAuth(req, res, next) {
   const userId = req.headers['x-user-id'];
   const userRole = req.headers['x-user-role'];

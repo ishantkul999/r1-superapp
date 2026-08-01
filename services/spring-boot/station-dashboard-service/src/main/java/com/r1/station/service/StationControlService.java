@@ -17,12 +17,6 @@ import java.time.ZoneId;
 import java.util.*;
 import java.util.stream.Collectors;
 
-/**
- * StationControlService — powers StationControlController.
- *
- * DROP AT:
- *   services/spring-boot/station-dashboard-service/src/main/java/com/r1/station/service/StationControlService.java
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -79,13 +73,8 @@ public class StationControlService {
         return result;
     }
 
-    // ── All Bookings (cross-type) ─────────────────────────────────────────────
 
     public List<Map<String, Object>> getAllBookings(String type) {
-        // Porter bookings are the main type. Room + locker data is available
-        // in this same service via existing StationRoom/LockerBooking repos.
-        // For now we return a combined list with a "type" discriminator.
-        // You can enhance this with real cross-repo joins later.
         List<Map<String, Object>> result = new ArrayList<>();
 
         if (List.of("ALL", "PORTER").contains(type)) {
@@ -102,7 +91,6 @@ public class StationControlService {
                 result.add(b);
             }
         }
-        // Room and locker rows can be appended here using StationRoomRepo / LockerBookingRepo
         return result;
     }
 

@@ -61,13 +61,6 @@ export default function AppShell() {
   const { role } = useAuthStore();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
-
-  // FIX: the bell badge below was previously a static empty <span> with no
-  // dynamic count at all — it never reflected real unread state. Notification
-  // state now lives here (not duplicated inside NotificationDropdown), fetched
-  // once and kept live via the same "notification:new" socket push used
-  // inside the dropdown, so the badge updates instantly even while the
-  // dropdown is closed.
   const [notifs, setNotifs] = useState([]);
   const unreadCount = notifs.filter(n => !n.isRead).length;
 

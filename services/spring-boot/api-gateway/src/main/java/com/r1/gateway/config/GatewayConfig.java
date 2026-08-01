@@ -10,10 +10,6 @@ import reactor.core.publisher.Mono;
 @Configuration
 public class GatewayConfig implements WebFluxConfigurer {
 
-    /**
-     * Key resolver for rate limiting (by remote IP).
-     * Only used on routes that explicitly add the RequestRateLimiter filter.
-     */
     @Bean
     public KeyResolver remoteAddrKeyResolver() {
         return exchange -> {
@@ -24,18 +20,6 @@ public class GatewayConfig implements WebFluxConfigurer {
         };
     }
 
-    /**
-     * WebFlux-level CORS config — catches OPTIONS preflight before
-     * Spring Security or Gateway filters can reject it with 403.
-     */
-    @Override
-    public void addCorsMappings(CorsRegistry registry) {
-        registry.addMapping("/**")
-                .allowedOriginPatterns("*")
-                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH", "HEAD")
-                .allowedHeaders("*")
-                .exposedHeaders("Authorization", "Content-Type")
-                .allowCredentials(true)
-                .maxAge(3600);
-    }
+
+
 }

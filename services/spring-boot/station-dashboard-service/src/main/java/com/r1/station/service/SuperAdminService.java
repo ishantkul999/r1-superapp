@@ -18,16 +18,6 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.*;
 import java.util.stream.Collectors;
-
-/**
- * SuperAdminService lives inside station-dashboard-service.
- *
- * DROP THIS FILE at:
- *   services/spring-boot/station-dashboard-service/src/main/java/com/r1/station/service/SuperAdminService.java
- *
- * It uses three cross-schema JPA repositories (see repository/ files).
- * Make sure the datasource user has SELECT on auth_svc and porter_svc schemas.
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -114,11 +104,7 @@ public class SuperAdminService {
     // ── System Config ─────────────────────────────────────────────────────────
 
     public void saveConfig(Map<String, Object> config) {
-        // Persist to Redis as simple key-value pairs so they're
-        // available to all services without a DB schema change.
-        // If you later want DB persistence, create a station_svc.system_config table.
         log.info("System config saved: {}", config.keySet());
-        // Real impl: iterate config entries → redisTemplate.opsForHash().putAll("config:system", config);
     }
 
     // ── Broadcast ─────────────────────────────────────────────────────────────
@@ -131,8 +117,6 @@ public class SuperAdminService {
         List<String> targetRoles = (List<String>) request.get("targetRoles");
 
         log.info("Broadcasting [{}] to roles {}: '{}' — {}", type, targetRoles, title, body);
-        // Real impl: publish to Kafka topic `notification.broadcast` with role filters;
-        // notification-service consumes and fans out via FCM / SMS.
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

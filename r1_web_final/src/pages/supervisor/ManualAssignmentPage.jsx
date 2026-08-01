@@ -24,25 +24,6 @@ function timeAgo(iso) {
   return `${Math.round(mins / 60)}h ago`;
 }
 
-/**
- * Manually Assigned Jobs — supervisor view.
- *
- * WHY THIS EXISTS: when a booking is escalated (no online porter accepted
- * within 15s), the supervisor dispatches it to an OFFLINE porter by phone —
- * someone without app access, by design (that's the whole point of the
- * offline-dispatch pool). But that also means that porter has no way to
- * call POST /bookings/{id}/complete themselves once the job is actually
- * done. Without this page, the booking would sit at ACCEPTED/IN_PROGRESS
- * forever, and that porter would be permanently excluded from the
- * available-for-dispatch pool (since the pool filters out anyone with an
- * active job).
- *
- * This page lists exactly those jobs (GET /api/supervisor/manual-assignments/active)
- * and lets the supervisor mark one complete once confirmed by phone
- * (POST /api/supervisor/bookings/{id}/complete). The backend rejects this
- * if the assigned porter is actually online — they should complete their
- * own job through the normal PIN-verified app flow instead.
- */
 export default function ManualAssignmentsPage() {
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);

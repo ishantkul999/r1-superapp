@@ -16,15 +16,6 @@ public class FcmStubService {
             log.info("STUB FCM: Push to user {}: [{}] {}", userId, title, body);
             return;
         }
-        // Real Firebase Admin SDK push notification code here
-        // FirebaseApp.initializeApp(FirebaseOptions.builder()
-        //     .setCredentials(GoogleCredentials.fromStream(...))
-        //     .build());
-        // Message message = Message.builder()
-        //     .setNotification(Notification.builder().setTitle(title).setBody(body).build())
-        //     .setToken(fcmToken)
-        //     .build();
-        // FirebaseMessaging.getInstance().send(message);
         log.info("Sending FCM push to {}: {}", userId, title);
     }
 }

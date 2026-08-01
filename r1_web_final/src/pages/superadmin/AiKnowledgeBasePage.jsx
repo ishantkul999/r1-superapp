@@ -3,18 +3,19 @@ import api from '../../lib/api.js';
  
 // ── Category colour map ───────────────────────────────────────────────────────
 const CATEGORY_VARIANT = {
-  GENERAL: 'primary',
-  PORTER:  'secondary',
-  ROOMS:   'warning',
-  LOCKERS: 'muted',
-  SOS:     'error',
-  TRAIN:   'success',
+  GENERAL:      'primary',
+  PORTER:       'secondary',
+  ROOMS:        'warning',
+  LOCKERS:      'muted',
+  SOS:          'error',
+  TRAIN:        'success',
+  STATION_INFO: 'primary',
+  TOURISM:      'secondary',
 };
- 
-const CATEGORIES = ['GENERAL', 'PORTER', 'ROOMS', 'LOCKERS', 'SOS', 'TRAIN'];
+
+const CATEGORIES = ['GENERAL', 'PORTER', 'ROOMS', 'LOCKERS', 'SOS', 'TRAIN', 'STATION_INFO', 'TOURISM'];
 const LANGUAGES  = [{ value: 'en', label: 'English' }, { value: 'hi', label: 'Hindi' }, { value: 'gu', label: 'Gujarati' }];
  
-// ── Small helper to format ISO timestamps ────────────────────────────────────
 function fmtDate(iso) {
   if (!iso) return '—';
   return new Date(iso).toLocaleString('en-IN', {
@@ -23,9 +24,6 @@ function fmtDate(iso) {
   });
 }
  
-// ════════════════════════════════════════════════════════════════════════════
-// Main Component
-// ════════════════════════════════════════════════════════════════════════════
 export default function AiKnowledgeBasePage() {
  
   // ── Form state ─────────────────────────────────────────────────────────────
@@ -139,17 +137,14 @@ export default function AiKnowledgeBasePage() {
       e.category?.toLowerCase().includes(q)
     );
   });
- 
-  // ════════════════════════════════════════════════════════════════════════════
-  // Render
-  // ════════════════════════════════════════════════════════════════════════════
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
  
       {/* ── Page header ─────────────────────────────────────────────────── */}
       <div className="page-header">
-        <h1 className="page-title">🧠 AI Knowledge Base</h1>
-        <p className="page-subtitle">Manage RAG documents ingested into Spring AI + pgvector (text-embedding-3-small)</p>
+        <h1 className="page-title">AI Knowledge Base</h1>
+        <p className="page-subtitle">Manage RAG documents ingested into Spring AI + pgvector (Ollama nomic-embed-text, 768-dim)</p>
       </div>
  
       {/* ── Global feedback banner ───────────────────────────────────────── */}
@@ -244,7 +239,7 @@ export default function AiKnowledgeBasePage() {
             </button>
           )}
           <span style={{ fontSize: '0.786rem', color: 'var(--color-text-muted)', marginLeft: 'auto' }}>
-            Vectors stored in <code style={{ background: 'var(--color-surface-2)', padding: '1px 5px', borderRadius: 4 }}>ai_svc.knowledge_base</code>
+            Vectors stored in <code style={{ background: 'var(--color-surface-2)', padding: '1px 5px', borderRadius: 4 }}>ai_svc.vector_store</code>
           </span>
         </div>
       </div>
@@ -408,7 +403,7 @@ export default function AiKnowledgeBasePage() {
               Showing <strong>{visible.length}</strong>
               {visible.length !== entries.length && ` of ${entries.length}`} entries
             </span>
-            <span>Embedding model: <code>text-embedding-3-small (384-dim)</code></span>
+            <span>Embedding model: <code>nomic-embed-text (768-dim, Ollama)</code></span>
           </div>
         )}
       </div>

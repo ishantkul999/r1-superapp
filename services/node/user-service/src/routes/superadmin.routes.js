@@ -1,11 +1,5 @@
 'use strict';
-/**
- * superadmin.routes.js — REPLACE existing file
- *
- * FIX: UserManagementPage calls PUT /api/superadmin/users/:id { isActive: bool }
- * Previous version only had /block and /unblock sub-paths.
- * Added PUT /:id to handle the toggle in one call.
- */
+
 const express = require('express');
 const router  = express.Router();
 const pool    = require('../db');
@@ -145,9 +139,7 @@ router.get('/users', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// ── PUT /api/superadmin/users/:id  (toggle block/unblock) ─────────────────────
-// FIX: UserManagementPage.jsx calls PUT /api/superadmin/users/${id} { isActive: bool }
-// Previous version only had /block and /unblock — no /:id route existed.
+// ── PUT /api/superadmin/users/:id
 router.put('/users/:id', async (req, res, next) => {
   if (!requireSuperAdmin(req, res)) return;
   const { isActive } = req.body;

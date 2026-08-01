@@ -14,30 +14,6 @@ import java.time.Duration;
 import java.util.*;
 import java.util.stream.Collectors;
 
-/**
- * AiAssistantService — now Spring-AI-backed and RAG-grounded.
- *
- * WHAT WAS WRONG BEFORE:
- *   Anything the hardcoded getFaqResponse() Java Map didn't cover fell
- *   straight through to a bare LLM call with a generic system prompt and
- *   NO access to any factual station data. Ask about porter pricing and you
- *   got the hardcoded FAQ (fine, but frozen in code, can't be updated
- *   without a redeploy); ask something adjacent that wasn't in that fixed
- *   keyword list -- e.g. "how much is a large locker for 2 days" or
- *   "is there a wheelchair porter option" phrased slightly differently --
- *   and the LLM had nothing grounding it but its own training data. That's
- *   a hallucination risk for anything price- or facility-specific.
- *
- * WHAT CHANGED:
- *   The hardcoded FAQ intent shortcut stays (it's instant, free, and fine
- *   for the handful of things it covers), but everything that falls
- *   through to the LLM now first does a similarity search against
- *   ai_svc.vector_store -- the SAME table the AI Planner's Knowledge Base
- *   admin page ingests into -- and that retrieved context is injected into
- *   the system prompt. Add a new fact to the knowledge base once (e.g. an
- *   updated porter rate, a new locker location) and BOTH the assistant and
- *   the planner immediately know about it, no redeploy needed.
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor

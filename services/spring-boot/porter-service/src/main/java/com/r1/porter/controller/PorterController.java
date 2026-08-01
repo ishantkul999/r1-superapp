@@ -18,18 +18,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
-/**
- * REPLACE the existing PorterController.java entirely.
- *
- * DROP AT:
- *   services/spring-boot/porter-service/src/main/java/com/r1/porter/controller/PorterController.java
- *
- * Key fix in this version:
- *   getDashboard / getActiveJob / getEarnings now catch RuntimeException from
- *   getPorterByUserId() and return 404 instead of letting the exception
- *   propagate as a 500. This happens when a user has role=PORTER in their JWT
- *   but hasn't been registered via POST /api/porter/register yet.
- */
 @Slf4j
 @RestController
 @RequestMapping("/api/porter")
@@ -41,7 +29,6 @@ public class PorterController {
     private static final List<String> STAFF_ROLES =
             List.of("SUPERVISOR", "STATION_CONTROL_ROOM", "SUPERADMIN");
 
-    // ─── ORIGINAL ENDPOINTS (unchanged) ──────────────────────────────────────
 
     @PostMapping("/bookings")
     public ResponseEntity<PorterBooking> createBooking(
@@ -162,16 +149,6 @@ public class PorterController {
         if (!STAFF_ROLES.contains(role)) return ResponseEntity.status(403).build();
         return ResponseEntity.ok(porterService.getOnlinePorters());
     }
-
-    // ─── NEW ENDPOINT 1: Porter Dashboard ────────────────────────────────────
-
-    /**
-     * GET /api/porter/dashboard
-     * Returns 404 (not 500) when the authenticated user has role=PORTER
-     * but hasn't completed porter registration yet.
-     * The frontend PorterDashboard.jsx should redirect to a registration
-     * page on receiving 404.
-     */
     @GetMapping("/dashboard")
     public ResponseEntity<?> porterDashboard(
             @RequestHeader("X-User-Id")   String userId,
@@ -190,7 +167,6 @@ public class PorterController {
         }
     }
 
-    // ─── NEW ENDPOINT 2: Porter Directory ────────────────────────────────────
 
     @GetMapping("/directory")
     public ResponseEntity<List<Porter>> porterDirectory(
@@ -199,7 +175,6 @@ public class PorterController {
         return ResponseEntity.ok(porterService.getAllPorters());
     }
 
-    // ─── NEW ENDPOINT 3: Pending Requests ────────────────────────────────────
 
     @GetMapping("/requests/pending")
     public ResponseEntity<List<PorterBooking>> pendingRequests(
@@ -208,13 +183,6 @@ public class PorterController {
         return ResponseEntity.ok(porterService.getPendingBookings());
     }
 
-    // ─── NEW ENDPOINT 4: Active Job ──────────────────────────────────────────
-
-    /**
-     * GET /api/porter/active-job
-     * Returns 404 with a clear message when porter is not registered.
-     * Returns 204 No Content when registered but currently idle.
-     */
     @GetMapping("/active-job")
     public ResponseEntity<?> activeJob(
             @RequestHeader("X-User-Id")   String userId,
@@ -231,8 +199,6 @@ public class PorterController {
                             "code",  "PORTER_NOT_REGISTERED"));
         }
     }
-
-    // ─── NEW ENDPOINT 5: Earnings ─────────────────────────────────────────────
 
     @GetMapping("/earnings")
     public ResponseEntity<?> earnings(

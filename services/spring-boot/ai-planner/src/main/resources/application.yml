@@ -33,17 +33,10 @@ spring:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
 
-  # ── Spring AI ────────────────────────────────────────────────────────────
-  # Chat comes from Groq (OpenAI-compatible API) via the OpenAI starter;
-  # embeddings come from local Ollama via the Ollama starter. Both starters
-  # are on the classpath, which would normally give us two ChatModel beans
-  # and two EmbeddingModel beans (ambiguous). `spring.ai.model.chat` /
-  # `spring.ai.model.embedding` tell Spring AI 1.0 which provider backs each
-  # generic interface, so ChatClient/EmbeddingModel injection is unambiguous.
   ai:
     model:
-      chat: openai        # → routed to Groq via the base-url override below
-      embedding: ollama    # → local, free, no API key
+      chat: openai
+      embedding: ollama
     openai:
       api-key: ${GROQ_API_KEY:stub}
       base-url: https://api.groq.com/openai
@@ -64,9 +57,7 @@ spring:
         dimensions: 768
         distance-type: COSINE_DISTANCE
         index-type: HNSW
-        # Lets Spring AI create/maintain the table itself instead of us
-        # hand-writing DDL — see infrastructure/sql/010_ai_svc_vector_store.sql
-        # for the one-time extension/schema prerequisite.
+
         initialize-schema: true
 
 # ── Planner config ────────────────────────────────────────────────────────────

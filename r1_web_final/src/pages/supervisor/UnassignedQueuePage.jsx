@@ -31,11 +31,6 @@ export function UnassignedQueuePage() {
   const [loading, setLoading] = useState(true);
   const [assigning, setAssigning] = useState(null);
   const [error, setError] = useState(null);
-
-  // NOTE: both endpoints return plain JSON arrays (List<PorterBooking> /
-  // List<Porter>), NOT { requests: [] } / { porters: [] }. The previous
-  // version read data.requests / data.porters, which were always undefined,
-  // so the queue and the porter dropdown always looked empty.
   const fetch = async () => {
     const [q, p] = await Promise.allSettled([
       api.get('/api/supervisor/queue/unassigned'),

@@ -30,10 +30,6 @@ router.post('/users', requireInternalSecret, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// POST /internal/users/batch — called by SOS service to enrich alert data
-// with user names and phones for multiple userIds at once.
-// Body: { userIds: ["uuid1", "uuid2", ...] }
-// Returns: [{ userId, name, phone }, ...]
 router.post('/users/batch', requireInternalSecret, async (req, res, next) => {
   try {
     const { userIds } = req.body;

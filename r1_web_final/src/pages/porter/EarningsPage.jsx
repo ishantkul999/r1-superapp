@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+import { IndianRupee, CheckCircle, TrendingUp, Star, Banknote } from 'lucide-react';
 import api from '../../lib/api.js';
 
 export default function EarningsPage() {
@@ -31,10 +32,10 @@ export default function EarningsPage() {
       {/* Summary stats */}
       <div className="stats-grid">
         {[
-          { label: 'Total Earnings', value: `₹${data?.totalEarnings || 0}`, icon: '💰', variant: 'teal' },
-          { label: 'Jobs Completed', value: data?.completedJobs || 0, icon: '✅', variant: 'green' },
-          { label: 'Avg per Job', value: `₹${data?.avgPerJob || 0}`, icon: '📊', variant: 'blue' },
-          { label: 'Rating', value: `${data?.rating || '—'} ⭐`, icon: '⭐', variant: 'amber' },
+          { label: 'Total Earnings', value: `₹${data?.totalEarnings || 0}`, icon: <IndianRupee size={24} />, variant: 'teal' },
+          { label: 'Jobs Completed', value: data?.completedJobs || 0, icon: <CheckCircle size={24} />, variant: 'green' },
+          { label: 'Avg per Job', value: `₹${data?.avgPerJob || 0}`, icon: <TrendingUp size={24} />, variant: 'blue' },
+          { label: 'Rating', value: data?.rating || '—', icon: <Star size={24} />, variant: 'amber' },
         ].map(s => (
           <div key={s.label} className="stat-card">
             <div className={`stat-icon ${s.variant}`}>{s.icon}</div>
@@ -65,7 +66,9 @@ export default function EarningsPage() {
         <h4 style={{ marginBottom: 14 }}>Transaction History</h4>
         {!data?.transactions?.length ? (
           <div className="empty-state" style={{ padding: '24px 0' }}>
-            <div className="empty-state-icon">💸</div>
+            <div className="empty-state-icon" style={{ color: 'var(--color-text-muted)', marginBottom: 8 }}>
+              <Banknote size={40} />
+            </div>
             <div className="empty-state-title">No transactions yet</div>
           </div>
         ) : (

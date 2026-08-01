@@ -161,7 +161,7 @@ export default function UserProfilePage() {
   );
 
   return (
-    <div style={{ maxWidth: 720, margin: '0 auto' }}>
+    <div style={{ maxWidth: 1100, margin: '0 auto' }}>
 
       {/* Page header */}
       <div className="page-header">

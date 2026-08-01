@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell } from 'recharts';
+import { 
+  Zap, Users, Brain, Settings, Search, HardHat, Package, 
+  IndianRupee, Activity, Siren, X, Plus, AlertTriangle, 
+  Check, RefreshCw 
+} from 'lucide-react';
 import api from '../../lib/api.js';
 
 // ── SuperAdmin Dashboard ──────────────────────────────────────────────────────
@@ -16,10 +21,10 @@ export default function SuperAdminDashboard() {
   const COLORS = ['#1B3A6B', '#0D9488', '#7C3AED', '#B45309'];
 
   const NAV = [
-    { icon: '👥', title: 'User Management', desc: 'All users across all roles', to: '/superadmin/users', color: '#1B3A6B' },
-    { icon: '🧠', title: 'AI Knowledge Base', desc: 'Manage RAG documents', to: '/superadmin/knowledge-base', color: '#0D9488' },
-    { icon: '⚙️', title: 'System Config', desc: 'API keys, feature flags', to: '/superadmin/config', color: '#7C3AED' },
-    { icon: '🔍', title: 'Global Audit Logs', desc: 'Platform-wide activity', to: '/superadmin/audit', color: '#B45309' },
+    { icon: <Users size={28} strokeWidth={1.5} />, title: 'User Management', desc: 'All users across all roles', to: '/superadmin/users', color: '#1B3A6B' },
+    { icon: <Brain size={28} strokeWidth={1.5} />, title: 'AI Knowledge Base', desc: 'Manage RAG documents', to: '/superadmin/knowledge-base', color: '#0D9488' },
+    { icon: <Settings size={28} strokeWidth={1.5} />, title: 'System Config', desc: 'API keys, feature flags', to: '/superadmin/config', color: '#7C3AED' },
+    { icon: <Search size={28} strokeWidth={1.5} />, title: 'Global Audit Logs', desc: 'Platform-wide activity', to: '/superadmin/audit', color: '#B45309' },
   ];
 
   return (
@@ -33,7 +38,9 @@ export default function SuperAdminDashboard() {
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       }}>
         <div>
-          <h2 style={{ color: '#fff', marginBottom: 4 }}>⚡ Application Overview</h2>
+          <h2 style={{ color: '#fff', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Zap size={24} fill="currentColor" /> Application Overview
+          </h2>
           <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.857rem' }}>
             R1 Super App · Central Railways
           </p>
@@ -49,12 +56,12 @@ export default function SuperAdminDashboard() {
 
       <div className="stats-grid">
         {[
-          { label: 'Total Users', value: stats?.totalUsers ?? '—', icon: '👥', variant: 'blue' },
-          { label: 'Total Porters', value: stats?.totalPorters ?? '—', icon: '👷', variant: 'teal' },
-          { label: 'Bookings (All Time)', value: stats?.totalBookings ?? '—', icon: '📦', variant: 'green' },
-          { label: 'Revenue (All Time)', value: stats?.totalRevenue ? `₹${stats.totalRevenue.toLocaleString('en-IN')}` : '—', icon: '💰', variant: 'amber' },
-          { label: 'Active Sessions', value: stats?.activeSessions ?? '—', icon: '🔗', variant: 'blue' },
-          { label: 'SOS Incidents', value: stats?.totalSos ?? '—', icon: '🚨', variant: 'red' },
+          { label: 'Total Users', value: stats?.totalUsers ?? '—', icon: <Users size={24} />, variant: 'blue' },
+          { label: 'Total Porters', value: stats?.totalPorters ?? '—', icon: <HardHat size={24} />, variant: 'teal' },
+          { label: 'Bookings (All Time)', value: stats?.totalBookings ?? '—', icon: <Package size={24} />, variant: 'green' },
+          { label: 'Revenue (All Time)', value: stats?.totalRevenue ? `₹${stats.totalRevenue.toLocaleString('en-IN')}` : '—', icon: <IndianRupee size={24} />, variant: 'amber' },
+          { label: 'Active Sessions', value: stats?.activeSessions ?? '—', icon: <Activity size={24} />, variant: 'blue' },
+          { label: 'SOS Incidents', value: stats?.totalSos ?? '—', icon: <Siren size={24} />, variant: 'red' },
         ].map(s => (
           <div key={s.label} className="stat-card">
             <div className={`stat-icon ${s.variant}`}>{s.icon}</div>
@@ -102,7 +109,7 @@ export default function SuperAdminDashboard() {
             onMouseEnter={e => e.currentTarget.style.borderColor = n.color}
             onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--color-border-light)'}
           >
-            <div style={{ fontSize: '1.5rem', marginBottom: 8 }}>{n.icon}</div>
+            <div style={{ marginBottom: 12, color: n.color }}>{n.icon}</div>
             <div style={{ fontWeight: 600, marginBottom: 2 }}>{n.title}</div>
             <div style={{ fontSize: '0.786rem', color: 'var(--color-text-muted)' }}>{n.desc}</div>
           </button>
@@ -138,8 +145,17 @@ export function UserManagementPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <div style={{ display: 'flex', gap: 10 }}>
-        <input className="form-input" placeholder="🔍 Search by name or phone…" value={search} onChange={e => setSearch(e.target.value)} style={{ flex: 1 }} />
+      <div style={{ display: 'flex', gap: 10, position: 'relative' }}>
+        <div style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)', display: 'flex' }}>
+          <Search size={18} />
+        </div>
+        <input 
+          className="form-input" 
+          placeholder="Search by name or phone…" 
+          value={search} 
+          onChange={e => setSearch(e.target.value)} 
+          style={{ flex: 1, paddingLeft: 38 }} 
+        />
       </div>
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
         {ROLES.map(r => <button key={r} className={`chip ${roleFilter === r ? 'active' : ''}`} onClick={() => setRoleFilter(r)} style={{ fontSize: '0.714rem' }}>{r}</button>)}
@@ -222,13 +238,13 @@ export function AiKnowledgeBasePage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div className="alert alert-info" style={{ fontSize: '0.814rem' }}>
-        🧠 Documents here are embedded via Spring AI + pgvector and served as RAG context to the AI Assistant.
+      <div className="alert alert-info" style={{ fontSize: '0.814rem', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <Brain size={18} /> Documents here are embedded via Spring AI + pgvector and served as RAG context to the AI Assistant.
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-        <button className="btn btn-primary" onClick={() => setShowForm(s => !s)}>
-          {showForm ? '✕ Cancel' : '+ Add Document'}
+        <button className="btn btn-primary" onClick={() => setShowForm(s => !s)} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {showForm ? <><X size={16} /> Cancel</> : <><Plus size={16} /> Add Document</>}
         </button>
       </div>
 
@@ -250,11 +266,11 @@ export function AiKnowledgeBasePage() {
               <label className="form-label">Content *</label>
               <textarea className="form-input" rows={5} value={form.content} onChange={e => setForm(f => ({...f, content: e.target.value}))} placeholder="Paste the full content here…" style={{ resize: 'vertical' }} />
             </div>
-            {error && <div className="alert alert-error">⚠️ {error}</div>}
+            {error && <div className="alert alert-error" style={{ display: 'flex', alignItems: 'center', gap: 6 }}><AlertTriangle size={16} /> {error}</div>}
             <div style={{ display: 'flex', gap: 10 }}>
               <button className="btn btn-ghost" onClick={() => setShowForm(false)}>Cancel</button>
-              <button className="btn btn-primary" onClick={handleAdd} disabled={uploading}>
-                {uploading ? <><span className="spinner" /> Ingesting…</> : '🧠 Ingest into RAG'}
+              <button className="btn btn-primary" onClick={handleAdd} disabled={uploading} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                {uploading ? <><span className="spinner" /> Ingesting…</> : <><Brain size={16} /> Ingest into RAG</>}
               </button>
             </div>
           </div>
@@ -264,7 +280,11 @@ export function AiKnowledgeBasePage() {
       {loading ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>{[1,2,3].map(i => <div key={i} className="skeleton" style={{ height: 80, borderRadius: 8 }} />)}</div>
       ) : docs.length === 0 ? (
-        <div className="empty-state"><div className="empty-state-icon">🧠</div><div className="empty-state-title">No documents yet</div><div className="empty-state-desc">Add knowledge documents to power the AI Assistant.</div></div>
+        <div className="empty-state">
+          <div className="empty-state-icon" style={{ color: 'var(--color-text-muted)' }}><Brain size={48} strokeWidth={1} /></div>
+          <div className="empty-state-title">No documents yet</div>
+          <div className="empty-state-desc">Add knowledge documents to power the AI Assistant.</div>
+        </div>
       ) : (
         <div className="table-wrap">
           <table>
@@ -278,8 +298,8 @@ export function AiKnowledgeBasePage() {
                   <td style={{ color: 'var(--color-text-muted)', fontSize: '0.786rem' }}>{d.ingestedAt}</td>
                   <td>
                     <div style={{ display: 'flex', gap: 6 }}>
-                      <button className="btn btn-outline btn-sm" onClick={() => handleReIngest(d.id)} disabled={ingesting === d.id}>
-                        {ingesting === d.id ? <span className="spinner" style={{ width: 12, height: 12 }} /> : '↻ Re-ingest'}
+                      <button className="btn btn-outline btn-sm" onClick={() => handleReIngest(d.id)} disabled={ingesting === d.id} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        {ingesting === d.id ? <span className="spinner" style={{ width: 12, height: 12 }} /> : <><RefreshCw size={12} /> Re-ingest</>}
                       </button>
                       <button className="btn btn-danger btn-sm" onClick={() => handleDelete(d.id)}>Delete</button>
                     </div>
@@ -351,8 +371,8 @@ export function SystemConfigPage() {
 
   return (
     <div style={{ maxWidth: 680, display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <div className="alert alert-warning" style={{ fontSize: '0.814rem' }}>
-        ⚠️ Mock mode uses stub APIs that simulate realistic responses without live integrations.
+      <div className="alert alert-warning" style={{ fontSize: '0.814rem', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <AlertTriangle size={18} /> Mock mode uses stub APIs that simulate realistic responses without live integrations.
       </div>
 
       <div className="card">
@@ -386,8 +406,8 @@ export function SystemConfigPage() {
         </div>
       </div>
 
-      <button className="btn btn-primary btn-lg" onClick={handleSave} disabled={saving} style={{ alignSelf: 'flex-end' }}>
-        {saving ? <><span className="spinner" /> Saving…</> : saved ? '✓ Saved!' : 'Save Configuration'}
+      <button className="btn btn-primary btn-lg" onClick={handleSave} disabled={saving} style={{ alignSelf: 'flex-end', display: 'flex', alignItems: 'center', gap: 6 }}>
+        {saving ? <><span className="spinner" /> Saving…</> : saved ? <><Check size={18} /> Saved!</> : 'Save Configuration'}
       </button>
     </div>
   );
@@ -434,4 +454,3 @@ export function GlobalAuditLogsPage() {
     </div>
   );
 }
-

@@ -14,27 +14,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * REPLACE the existing SupervisorAssignmentScheduler.java.
- *
- * DROP AT:
- *   services/spring-boot/porter-service/src/main/java/com/r1/porter/scheduler/SupervisorAssignmentScheduler.java
- *
- * CHANGE FROM ORIGINAL:
- *   In addition to the existing Redis pub/sub publish (kept unchanged for
- *   backward compat), this now ALSO publishes to Kafka topic
- *   "supervisor.escalation". The sos-service Kafka bridge consumer picks
- *   this up and pushes a real-time Socket.io event to the 'supervisor-room',
- *   so supervisors see escalated (unaccepted) bookings the instant the
- *   15-second timer expires — without polling.
- *
- * This directly implements:
- *   "if porter wont accept within 15sec supervisor would assign a offline
- *    porter (having no digital device)"
- *   — the supervisor now gets an INSTANT push notification the moment a
- *   booking needs manual/offline assignment, instead of waiting for the
- *   dashboard's next poll cycle.
- */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -47,10 +26,6 @@ public class SupervisorAssignmentScheduler {
     private static final String SUPERVISOR_TIMER_KEY = "porter:supervisor_timer:%s";
     private static final String ESCALATED_KEY = "porter:escalated:%s";
 
-    /**
-     * Every 5 seconds, check pending bookings whose 15s timer has expired.
-     * Escalate them for supervisor manual assignment.
-     */
     @Scheduled(fixedDelay = 5000)
     public void checkSupervisorEscalations() {
         List<PorterBooking> pendingBookings = bookingRepository.findPendingBookings();
@@ -68,12 +43,8 @@ public class SupervisorAssignmentScheduler {
 
                 redisTemplate.opsForValue().set(escalatedKey, "1", java.time.Duration.ofHours(1));
 
-                // EXISTING — kept unchanged for any code already listening on this channel
                 redisTemplate.convertAndSend("supervisor:escalations", booking.getId().toString());
 
-                // NEW — publish to Kafka so sos-service's Socket.io bridge can push
-                // a real-time event to the 'supervisor-room', giving supervisors
-                // instant visibility (instead of relying on dashboard polling).
                 publishEscalationEvent(booking);
             }
         }
@@ -102,7 +73,6 @@ public class SupervisorAssignmentScheduler {
                         }
                     });
         } catch (Exception e) {
-            // Non-fatal — Redis pub/sub above still works even if Kafka publish fails
             log.warn("Could not publish escalation Kafka event: {}", e.getMessage());
         }
     }

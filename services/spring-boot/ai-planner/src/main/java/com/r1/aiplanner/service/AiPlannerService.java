@@ -14,27 +14,6 @@ import org.springframework.stereotype.Service;
 import java.util.*;
 import java.util.stream.Collectors;
 
-/**
- * AiPlannerService — now backed by Spring AI (ChatClient + VectorStore)
- * instead of hand-rolled RestTemplate calls to Groq/Ollama.
- *
- * WHAT CHANGED AND WHY:
- *   - Chat: groqClient.chat(List<Map<String,String>>) -> chatClient.prompt()...
- *     Same effective call (Groq, via the OpenAI-compatible starter), but
- *     Spring AI handles the HTTP plumbing, retries, and response parsing.
- *   - Embeddings + retrieval: manual embed() + raw "ORDER BY embedding <=>"
- *     SQL -> vectorStore.similaritySearch(...). Spring AI's PgVectorStore
- *     embeds the query internally (via the auto-configured Ollama
- *     EmbeddingModel) and does the cosine search for you.
- *   - Ingestion: manual float[] embed() + vector-string SQL insert ->
- *     vectorStore.add(List.of(document)). Category/source/language/
- *     ingestedBy now live in the Document's metadata map, since Spring AI's
- *     managed table (ai_svc.vector_store) only has id/content/metadata/
- *     embedding columns -- not our old bespoke ai_svc.knowledge_base schema.
- *   - List/delete/re-ingest still use JdbcTemplate against vector_store
- *     directly, since VectorStore's interface doesn't expose a generic
- *     "list all with filters + pagination" operation.
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -123,8 +102,6 @@ public class AiPlannerService {
         ));
 
         try {
-            // VectorStore.add() embeds via the auto-configured Ollama
-            // EmbeddingModel internally -- no manual embed() call needed.
             vectorStore.add(List.of(document));
 
             try {
@@ -142,9 +119,6 @@ public class AiPlannerService {
         }
     }
 
-    // -- List Knowledge Base --------------------------------------------------
-    // Reads the same ai_svc.vector_store table Spring AI's PgVectorStore
-    // manages; category/source/language/ingestedBy are inside `metadata`.
     public List<Map<String, Object>> listKnowledge(String category, String language, int page, int size) {
         StringBuilder sql = new StringBuilder(
                 "SELECT id, content, " +
@@ -198,8 +172,6 @@ public class AiPlannerService {
             throw new NoSuchElementException("Knowledge entry not found: " + id);
         }
 
-        // Re-embedding = delete + re-add with the same id, so the
-        // knowledge base admin UI's row doesn't change identity.
         vectorStore.delete(List.of(id.toString()));
         Document document = new Document(id.toString(), (String) row.get("content"), Map.of(
                 "category",   row.get("category"),

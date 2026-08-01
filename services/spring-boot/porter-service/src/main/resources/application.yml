@@ -2,16 +2,9 @@ server:
   port: ${PORTER_SERVICE_PORT:8092}
   tomcat:
     threads:
-      # ── FIX 3: matching the Tomcat worker thread pool to the DB pool ──────
-      # A request blocked waiting for a DB connection holds its Tomcat
-      # worker thread the entire time it waits — if max threads >> DB pool
-      # size, you just get MORE requests piling up waiting (worse queueing,
-      # more memory per waiting thread), not better throughput. Keep this
-      # roughly proportional to maximum-pool-size above, with some headroom
-      # for non-DB-bound requests (health checks, etc.).
       max: ${TOMCAT_MAX_THREADS:60}
       min-spare: ${TOMCAT_MIN_SPARE_THREADS:10}
-    accept-count: 100   # requests queued at the OS/socket level once all worker threads are busy, before being rejected outright
+    accept-count: 100
 spring:
   application:
     name: porter-service
@@ -20,41 +13,12 @@ spring:
     username: ${POSTGRES_USER:r1user}
     password: ${POSTGRES_PASSWORD:r1password}
     hikari:
-      # ── FIX: intermittent 10-15s request latency + "Failed to validate
-      # connection ... this connection has been closed" warnings ───────────
-      # ROOT CAUSE: HikariCP's default max-lifetime (30 min) is longer than
-      # the idle-connection timeout enforced by Postgres/the network path in
-      # this environment, so the pool was handing out connections that were
-      # already dead. Discovering that mid-request (via validation, retry,
-      # then a full new TCP+auth handshake) is exactly what added the extra
-      # 10+ seconds on the /accept call.
-      # FIX: keep connections short-lived and validated proactively so a
-      # dead connection is never handed to a live request.
-      max-lifetime: 240000        # 4 min — recycle before the network path times them out
-      idle-timeout: 120000        # 2 min — evict idle connections early
-      keepalive-time: 60000       # 1 min — proactively pings idle connections to keep them alive
-      connection-timeout: 10000   # fail fast (10s) instead of hanging ~30s waiting on a bad pool
+
+      max-lifetime: 240000
+      idle-timeout: 120000
+      keepalive-time: 60000
+      connection-timeout: 10000
       validation-timeout: 3000
-      # ── FIX 2: pool exhaustion under burst load ────────────────────────────
-      # The k6 booking_burst.js test (150 concurrent VUs) showed a classic
-      # connection-pool-queueing signature: fast median (35ms) but exploding
-      # p95/p99 (3.9s / 9.6s) — most requests get a connection instantly,
-      # but once the pool of only 10 is saturated, requests queue for a free
-      # connection and their total latency balloons.
-      #
-      # porter-service is the single hottest DB consumer in the whole
-      # system (booking create/accept/start/complete, supervisor queue,
-      # active-job checks), so it needs real headroom. 25 is a reasonable
-      # production value on typical server hardware (4+ cores, 8GB+ RAM
-      # dedicated to this one service).
-      #
-      # ON A SHARED 8GB DEV LAPTOP RUNNING ALL 8 SERVICES + KAFKA +
-      # ZOOKEEPER + POSTGRES + REDIS + OLLAMA AT ONCE: do NOT just raise
-      # this — more concurrent Postgres connections means more Postgres
-      # backend processes competing for the SAME limited RAM/CPU, which can
-      # make tail latency worse, not better, once you're already
-      # memory-constrained. Override down locally instead:
-      #   export PORTER_DB_POOL_SIZE=8
       maximum-pool-size: ${PORTER_DB_POOL_SIZE:25}
       minimum-idle: ${PORTER_DB_MIN_IDLE:5}
   jpa:
@@ -70,10 +34,6 @@ spring:
       password: ${REDIS_PASSWORD:r1redispass}
       lettuce:
         pool:
-          # Without commons-pool2 + this config, Lettuce shares a single
-          # multiplexed connection across all threads by default — usually
-          # fine, but under real burst concurrency an explicit pool avoids
-          # any single-connection command queueing becoming a bottleneck.
           max-active: ${REDIS_POOL_MAX_ACTIVE:16}
           max-idle: ${REDIS_POOL_MAX_IDLE:8}
           min-idle: ${REDIS_POOL_MIN_IDLE:2}
@@ -90,9 +50,6 @@ spring:
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
         spring.json.trusted.packages: "*"
-        # Same fix applied to notification-service — avoids the constant
-        # "need to re-join with the given member-id" rebalance churn visible
-        # in the logs when the default 10s session timeout is too tight.
         session.timeout.ms: 60000
         heartbeat.interval.ms: 20000
         max.poll.interval.ms: 300000

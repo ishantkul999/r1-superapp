@@ -66,7 +66,7 @@ export default function BroadcastPage() {
   };
 
   return (
-    <div style={{ maxWidth: 800, margin: '0 auto' }}>
+    <div style={{ maxWidth: 1100, margin: '0 auto' }}>
 
       <div className="page-header">
         <h1 className="page-title">Broadcast Notifications</h1>

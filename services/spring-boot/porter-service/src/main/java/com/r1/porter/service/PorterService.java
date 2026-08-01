@@ -24,27 +24,6 @@ import java.time.*;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-
-/**
- * REPLACE the existing PorterService.java entirely.
- *
- * DROP AT:
- *   services/spring-boot/porter-service/src/main/java/com/r1/porter/service/PorterService.java
- *
- * Changes from original:
- *   - createBooking() — now maps pnrNumber, seatBerth, passengerName,
- *     passengerMobile, passengerEmail from request into the booking entity
- *   - registerPorter() — now maps employeeId, fullName, email, phone,
- *     dateOfBirth, onboardedBy into the porter entity
- *   - calculateBaseAmount() — adds LUGGAGE_ONLY and WHEELCHAIR_ONLY as
- *     explicit cases (previously fell through to default)
- *   + getDashboard()           — NEW (from previous fix)
- *   + getActiveJob()           — NEW
- *   + getEarnings()            — NEW
- *   + getAllPorters()           — NEW
- *   + getUnassignedPendingBookings() — NEW
- *   + getSupervisorDashboard() — NEW
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -61,7 +40,6 @@ public class PorterService {
     private static final ZoneId     IST                  = ZoneId.of("Asia/Kolkata");
     private static final BigDecimal PLATFORM_FEE_RATE    = new BigDecimal("0.10");
 
-    // CRIS-regulated base tariffs (excl. GST)
     private static final BigDecimal BASE_LUGGAGE_ONLY        = new BigDecimal("85.00");
     private static final BigDecimal BASE_LUGGAGE_BARROW      = new BigDecimal("135.00");
     private static final BigDecimal BASE_WHEELCHAIR_ONLY     = new BigDecimal("135.00");
@@ -69,9 +47,6 @@ public class PorterService {
     private static final BigDecimal BASE_COMBINED            = new BigDecimal("220.00");
     private static final BigDecimal GST_RATE                 = new BigDecimal("0.18");
 
-    // ═════════════════════════════════════════════════════════════════════════
-    // BOOKING OPERATIONS
-    // ═════════════════════════════════════════════════════════════════════════
 
     @Transactional
     public PorterBooking createBooking(UUID userId, Map<String, Object> request) {
@@ -91,9 +66,9 @@ public class PorterService {
                 .trainNumber((String) request.get("trainNumber"))
                 .coachNumber((String) request.get("coachNumber"))
                 .platform((String) request.get("platform"))
-                .pnrNumber((String) request.get("pnrNumber"))           // NEW
-                .seatBerth((String) request.get("seatBerth"))           // NEW
-                // Locations (free text)
+                .pnrNumber((String) request.get("pnrNumber"))
+                .seatBerth((String) request.get("seatBerth"))
+                // Locations
                 .pickupLocation((String) request.get("pickupLocation"))
                 .destination((String) request.get("destination"))
                 // Luggage
@@ -103,7 +78,6 @@ public class PorterService {
                         ? new BigDecimal(request.get("luggageWeightKg").toString()) : null)
                 .assistanceType((String) request.get("assistanceType"))
                 .specialInstructions((String) request.get("specialInstructions"))
-                // Passenger details (autofilled from profile, embedded in booking) NEW
                 .passengerName((String) request.get("passengerName"))
                 .passengerMobile((String) request.get("passengerMobile"))
                 .passengerEmail((String) request.get("passengerEmail"))
@@ -221,10 +195,6 @@ public class PorterService {
         return pr;
     }
 
-    // ═════════════════════════════════════════════════════════════════════════
-    // PORTER REGISTRATION (UPDATED — captures all onboarding fields)
-    // ═════════════════════════════════════════════════════════════════════════
-
     @Transactional
     public Porter registerPorter(Map<String, Object> request) {
         UUID userId = UUID.fromString((String) request.get("userId"));
@@ -235,7 +205,6 @@ public class PorterService {
         if (porterRepository.existsByBadgeNumber(badge))
             throw new RuntimeException("Badge number already in use");
 
-        // Parse optional dateOfBirth
         LocalDate dob = null;
         if (request.get("dateOfBirth") != null) {
             try { dob = LocalDate.parse(request.get("dateOfBirth").toString()); }
@@ -255,7 +224,6 @@ public class PorterService {
                 .serviceType((String) request.getOrDefault("serviceType", "LUGGAGE_ONLY"))
                 .zone((String) request.get("zone"))
                 .stationId(DEFAULT_STATION_ID)
-                // NEW profile fields
                 .employeeId((String) request.get("employeeId"))
                 .fullName((String) request.get("fullName"))
                 .email((String) request.get("email"))
@@ -267,9 +235,6 @@ public class PorterService {
         return porterRepository.save(porter);
     }
 
-    // ═════════════════════════════════════════════════════════════════════════
-    // STATUS / QUERIES
-    // ═════════════════════════════════════════════════════════════════════════
 
     public void toggleOnlineStatus(UUID porterId, boolean online) {
         porterRepository.findById(porterId).ifPresent(p -> {
@@ -297,12 +262,6 @@ public class PorterService {
         return porterRepository.findByIsOnlineTrueAndIsActiveTrue();
     }
 
-    // ── Offline porters for manual escalation dispatch ─────────────────────
-    // Online porters already get a 15s auto-accept window before a booking
-    // escalates to the supervisor queue — if they didn't take it there,
-    // offering them again here is redundant. The manual-assign pool should
-    // be the offline, active porters physically on duty without the app
-    // open, who can only be dispatched by phone/radio.
     public List<Porter> getOfflinePorters() {
         return porterRepository.findByIsOnlineFalseAndIsActiveTrue();
     }
@@ -310,11 +269,6 @@ public class PorterService {
     public List<Porter> getAllPorters() {
         return porterRepository.findByIsActiveTrue();
     }
-
-    /**
-     * Active (ACCEPTED/IN_PROGRESS) bookings currently held by offline
-     * porters, for the supervisor's "Manually Assigned Jobs" view.
-     */
     public List<Map<String, Object>> getActiveOfflinePorterAssignments() {
         List<Object[]> rows = bookingRepository.findActiveBookingsForOfflinePortersRaw();
         List<Map<String, Object>> result = new ArrayList<>();
@@ -341,18 +295,6 @@ public class PorterService {
         return result;
     }
 
-    /**
-     * Supervisor marks a manually-dispatched job complete on behalf of a
-     * porter who has no app access (that's the whole reason they were
-     * manually dispatched in the first place — they can't call
-     * /bookings/{id}/complete themselves).
-     *
-     * Unlike the porter's own completeService(), this doesn't require
-     * IN_PROGRESS specifically — a supervisor confirming completion by
-     * phone might be told the job finished even if the porter (with no
-     * app) never had a way to trigger the ACCEPTED→IN_PROGRESS PIN step.
-     * Either ACCEPTED or IN_PROGRESS is accepted as the starting state.
-     */
     @Transactional
     public PorterBooking supervisorCompleteBooking(UUID bookingId, UUID supervisorId) {
         PorterBooking booking = bookingRepository.findById(bookingId)
@@ -368,9 +310,6 @@ public class PorterService {
         Porter porter = porterRepository.findById(booking.getPorterId())
                 .orElseThrow(() -> new RuntimeException("Assigned porter not found"));
         if (Boolean.TRUE.equals(porter.getIsOnline())) {
-            // Online porters have app access — they should complete their
-            // own jobs via the normal PIN-verified flow. This endpoint is
-            // specifically the offline-porter fallback.
             throw new RuntimeException("Porter is online — ask them to complete the job from their app");
         }
 
@@ -393,9 +332,6 @@ public class PorterService {
                 .orElseThrow(() -> new RuntimeException("Porter profile not found for user: " + userId));
     }
 
-    // ═════════════════════════════════════════════════════════════════════════
-    // DASHBOARD / EARNINGS (from previous fix)
-    // ═════════════════════════════════════════════════════════════════════════
 
     public PorterDashboardDto getDashboard(UUID userId) {
         Porter porter = getPorterByUserId(userId);
@@ -462,19 +398,12 @@ public class PorterService {
                 .build();
     }
 
-    // ═════════════════════════════════════════════════════════════════════════
-    // PRIVATE HELPERS
-    // ═════════════════════════════════════════════════════════════════════════
 
     private void startSupervisorTimer(UUID bookingId) {
         redisTemplate.opsForValue().set(
                 String.format(SUPERVISOR_TIMER_KEY, bookingId), "1", 15, TimeUnit.SECONDS);
     }
 
-    /**
-     * All 5 service types with accurate CRIS pricing.
-     * Previously LUGGAGE_ONLY and WHEELCHAIR_ONLY fell through to the default.
-     */
     private BigDecimal calculateBaseAmount(String serviceType) {
         return switch (serviceType) {
             case "LUGGAGE_ONLY"          -> BASE_LUGGAGE_ONLY;
@@ -540,10 +469,6 @@ public class PorterService {
         ).collect(Collectors.toList());
     }
 
-    /**
-     * Marks porter online/offline by their auth userId.
-     * Called automatically from GET /api/porter/dashboard (app open = online).
-     */
     public void setOnlineByUserId(UUID userId, boolean online) {
         porterRepository.findByUserId(userId).ifPresent(p -> {
             p.setIsOnline(online);
@@ -552,7 +477,6 @@ public class PorterService {
         });
     }
 
-    // ── Private mapping helpers ───────────────────────────────────────────────
     private static String str(Object o) { return o != null ? o.toString() : null; }
 
     private static java.time.Instant toInstant(Object o) {

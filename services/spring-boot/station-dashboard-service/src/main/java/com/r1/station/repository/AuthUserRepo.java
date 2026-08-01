@@ -9,13 +9,6 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * Native-query repository that reads auth_svc.users from station-dashboard-service.
- * The datasource DB user must have SELECT/UPDATE on auth_svc schema.
- *
- * Uses Spring Data's base Repository (no entity class needed) + native SQL.
- * DROP AT: services/spring-boot/station-dashboard-service/src/main/java/com/r1/station/repository/AuthUserRepo.java
- */
 @Component
 public interface AuthUserRepo extends Repository<AuthUserProjection, UUID> {
 
@@ -27,9 +20,6 @@ public interface AuthUserRepo extends Repository<AuthUserProjection, UUID> {
             nativeQuery = true)
     long countByRoleAndIsActiveTrue(String role);
 
-    /**
-     * Returns rows: [id, phone, name, email, role, created_at, is_active]
-     */
     @Query(value = "SELECT id, phone, name, email, role, created_at, is_active " +
             "FROM auth_svc.users ORDER BY created_at DESC",
             nativeQuery = true)

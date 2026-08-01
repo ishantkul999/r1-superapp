@@ -1,23 +1,5 @@
 'use strict';
-/**
- * staff-profile.routes.js — read-only profile for onboarded staff (Porter, RPF)
- *
- * DROP AT:
- *   services/node/user-service/src/routes/staff-profile.routes.js
- *
- * Mount in index.js:
- *   app.use('/api/staff', require('./routes/staff-profile.routes'));
- *
- * These endpoints serve the "Profile" page for Porter and RPF roles.
- * The profile data is a combination of:
- *   - auth_svc.users (phone, role, name)
- *   - user_svc.profiles (contact details)
- *   - station_svc.staff_onboarding (badge, zone, employee_id, assigned by SCR)
- *   - porter_svc.porters (badge, service_type for porter role)
- *
- * The profile is READ-ONLY for the staff member — it reflects what the
- * Station Control Room entered at onboarding. Only SCR can edit it.
- */
+
 const express = require('express');
 const router  = express.Router();
 const pool    = require('../db');
@@ -25,7 +7,7 @@ const pool    = require('../db');
 const STAFF_ROLES = ['PORTER', 'RPF', 'SUPERVISOR'];
 
 // ── GET /api/staff/profile/me ─────────────────────────────────────────────────
-// Returns the complete onboarded profile for the logged-in staff member.
+
 router.get('/profile/me', async (req, res, next) => {
   const userId = req.headers['x-user-id'];
   const role   = req.headers['x-user-role'];
@@ -59,7 +41,6 @@ router.get('/profile/me', async (req, res, next) => {
       WHERE s.user_id = $1
     `, [userId]);
 
-    // For porter role, also get porter-specific details
     let porterDetails = null;
     if (role === 'PORTER') {
       const { rows: porterRows } = await pool.query(`
@@ -87,7 +68,7 @@ router.get('/profile/me', async (req, res, next) => {
       email:       user.email,
       dateOfBirth: user.date_of_birth,
       gender:      user.gender,
-      // Onboarding details (read-only — set by Station Control Room)
+
       onboarding:  onboardRows[0] || null,
       // Porter-specific (null for RPF/Supervisor)
       porterProfile: porterDetails,

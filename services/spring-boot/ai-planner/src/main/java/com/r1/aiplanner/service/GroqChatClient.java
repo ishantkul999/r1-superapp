@@ -9,13 +9,6 @@ import org.springframework.web.client.RestTemplate;
 import java.util.List;
 import java.util.Map;
 
-/**
- * GroqChatClient for ai-planner service.
- * Same logic as ai-assistant version — different package only.
- *
- * DROP AT:
- *   services/spring-boot/ai-planner/src/main/java/com/r1/aiplanner/service/GroqChatClient.java
- */
 @Slf4j
 @Component
 public class GroqChatClient {

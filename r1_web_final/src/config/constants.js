@@ -17,7 +17,7 @@ export const API_BASE_URL =
 export const SOCKET_URL =
   import.meta.env.VITE_SOCKET_URL || 'http://localhost:3006';
 
-// ── Porter pricing (CRIS fixed tariff incl. 18% GST) ─────────────────────────
+// ── Porter pricing  ─────────────────────────
 export const PORTER_PRICING = {
   LUGGAGE_ONLY:        { base: 85,  gst: 15.30, total: 100.30, label: 'Luggage (up to 40 kg)' },
   LUGGAGE_BARROW:      { base: 135, gst: 24.30, total: 159.30, label: 'Luggage Barrow (40–160 kg)' },
@@ -26,14 +26,10 @@ export const PORTER_PRICING = {
   COMBINED:            { base: 220, gst: 39.60, total: 259.60, label: 'Combined (Luggage + Wheelchair)' },
 };
 
-// ── Groq AI config (replaces OpenAI for MVP) ──────────────────────────────────
-// Phase 1 MVP uses Groq (faster inference, lower cost, government-pilot suitable).
-// The AI service abstraction layer allows switching to OpenAI, Anthropic, or
-// self-hosted models later without frontend changes.
 export const AI_CONFIG = {
   provider:    'groq',
-  model:       'llama3-8b-8192',      // fastest Groq model for chat
-  embedModel:  'text-embedding-3-small', // still uses OpenAI for embeddings (pgvector)
+  model:       'llama3-8b-8192',      
+  embedModel:  'text-embedding-3-small', 
   languages:   ['en', 'hi', 'gu'],
   maxTokens:   1024,
 };

@@ -1,23 +1,5 @@
 'use strict';
-/**
- * porter-events.consumer.js — REPLACE existing file
- *
- * DROP AT:
- *   services/node/sos-service/src/kafka/porter-events.consumer.js
- *
- * FIX: Kafka consumer rebalance storm
- * Image 2 showed repeated errors from 'sos-service-bridge' consumer group:
- *   "The coordinator is not aware of this member"
- *   "re-joining the group"
- *
- * ROOT CAUSE: KafkaJS default sessionTimeout is 30s. When the sos-service
- * Kafka consumer takes longer than 30s to process + heartbeat (e.g. during
- * a Socket.io broadcast to many clients), the broker considers it dead and
- * removes it from the group → rebalance → consumer re-joins → same loop.
- *
- * FIX: Increase sessionTimeout + heartbeatInterval in the consumer config.
- * Also added retry config so transient connection errors don't crash the consumer.
- */
+
 const { Kafka } = require('kafkajs');
 
 const KAFKA_BROKERS = (process.env.KAFKA_BROKERS || 'localhost:9092').split(',');
@@ -41,10 +23,9 @@ const TOPICS = [
 async function startPorterEventsConsumer(io) {
   const consumer = kafka.consumer({
     groupId: 'sos-service-socket-bridge',
-    // FIX: increased timeouts to stop rebalance storm
-    sessionTimeout:      60000,   // 60s — broker waits this long before declaring consumer dead
-    heartbeatInterval:   20000,   // 20s — consumer sends heartbeat every 20s (must be < 1/3 of sessionTimeout)
-    maxBytesPerPartition: 1048576, // 1MB per partition per fetch
+    sessionTimeout:      60000,   
+    heartbeatInterval:   20000,  
+    maxBytesPerPartition: 1048576, 
   });
 
   try {
@@ -54,7 +35,6 @@ async function startPorterEventsConsumer(io) {
     console.log('[Kafka Bridge] Connected. Subscribed to:', TOPICS.join(', '));
 
     await consumer.run({
-      // Process one message at a time — prevents long processing blocking heartbeats
       partitionsConsumedConcurrently: 1,
       eachMessage: async ({ topic, message }) => {
         let event;
@@ -68,7 +48,6 @@ async function startPorterEventsConsumer(io) {
         try {
           switch (topic) {
             case 'porter.booked':
-              // New booking: notify supervisor-room instantly + user
               io.to('supervisor-room').emit('booking:new', event);
               if (event.userId) {
                 io.to(`user:${event.userId}`).emit('booking:status', {
@@ -80,7 +59,6 @@ async function startPorterEventsConsumer(io) {
               break;
 
             case 'porter.assigned':
-              // Porter accepted: notify user + remove from supervisor queue
               if (event.userId) {
                 io.to(`user:${event.userId}`).emit('booking:assigned', {
                   ...event,
@@ -101,7 +79,6 @@ async function startPorterEventsConsumer(io) {
               break;
 
             case 'supervisor.escalation':
-              // 15s timer expired — push to supervisor for manual assignment
               io.to('supervisor-room').emit('booking:escalated', {
                 ...event,
                 statusMessage: 'No porter accepted within 15 seconds. Manual assignment needed.',
@@ -111,7 +88,6 @@ async function startPorterEventsConsumer(io) {
           }
         } catch (emitErr) {
           console.error('[Kafka Bridge] Socket emit error on topic', topic, ':', emitErr.message);
-          // Non-fatal — continue processing next message
         }
       },
     });

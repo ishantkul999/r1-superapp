@@ -188,7 +188,7 @@ export default function PorterBookingPage() {
   
 
   return (
-    <div style={{ maxWidth: 680, margin: '0 auto' }}>
+    <div style={{ maxWidth: 1000, margin: '0 auto' }}>
 
       {/* Page header */}
       <div className="page-header">

@@ -7,15 +7,6 @@ import org.springframework.stereotype.Component;
 import java.util.Map;
 import java.util.UUID;
 
-/**
- * CRIS API Client (stub)
- * Replace stub methods with real HTTP calls when CRIS API key is available.
- * Endpoints expected:
- *   POST /rooms/book      → book a retiring room
- *   POST /rooms/cancel    → cancel room booking
- *   POST /lockers/book    → book a digital locker
- *   POST /lockers/cancel  → cancel locker booking
- */
 @Slf4j
 @Component
 public class CrisApiClient {

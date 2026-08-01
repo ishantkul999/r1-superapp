@@ -20,8 +20,6 @@ export default function BookingsPage() {
   const [expanded,  setExpanded]  = useState(null);
 
   useEffect(() => {
-    // CORRECT: GET /api/porter/bookings/my — returns List<PorterBookingDetailDto>
-    // with porterName, porterPhone, porterBadge, porterZone joined in
     api.get('/api/porter/bookings/my')
       .then(r => setBookings(Array.isArray(r.data) ? r.data : (r.data?.bookings || [])))
       .catch(() => {})
@@ -38,7 +36,7 @@ export default function BookingsPage() {
   });
 
   return (
-    <div style={{ maxWidth: 720, margin: '0 auto', display:'flex', flexDirection:'column', gap: 20 }}>
+    <div style={{ maxWidth: 1000, margin: '0 auto', display:'flex', flexDirection:'column', gap: 20 }}>
       <div className="page-header">
         <h1 className="page-title">My Bookings</h1>
         <p className="page-subtitle">All your porter service bookings at ADI</p>

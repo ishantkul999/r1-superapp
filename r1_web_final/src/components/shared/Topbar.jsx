@@ -24,11 +24,6 @@ const PAGE_TITLES = {
   '/superadmin/config':'System Config','/superadmin/audit':'Global Audit Logs',
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// NotifPanel — calls GET /api/notifications (correct endpoint, no /my, no params)
-// Backend returns: [{id, userId, title, body, type, isRead, createdAt}] plain array
-// Field names are camelCase (Jackson): isRead, createdAt — NOT is_read, created_at
-// ─────────────────────────────────────────────────────────────────────────────
 function NotifPanel({ onClose }) {
   const ref    = useRef(null);
   const [notifs,  setNotifs]  = useState([]);
@@ -36,7 +31,6 @@ function NotifPanel({ onClose }) {
   const [marking, setMarking] = useState(false);
 
   useEffect(() => {
-    // CORRECT: /api/notifications (no /my suffix, no query params)
     api.get('/api/notifications')
       .then(r => setNotifs(Array.isArray(r.data) ? r.data : []))
       .catch(() => setNotifs([]))
@@ -66,7 +60,7 @@ function NotifPanel({ onClose }) {
     setMarking(false);
   };
 
-  // CORRECT: n.isRead (camelCase, NOT n.is_read)
+ 
   const unread = notifs.filter(n => !n.isRead).length;
 
   const fmt = iso => {
@@ -101,7 +95,7 @@ function NotifPanel({ onClose }) {
               <div style={{ flex:1 }}>
                 <div style={{ fontWeight:n.isRead?500:700,fontSize:'0.843rem',marginBottom:3 }}>{n.title}</div>
                 <div style={{ fontSize:'0.786rem',color:'var(--color-text-secondary)',lineHeight:1.5 }}>{n.body}</div>
-                {/* CORRECT: n.createdAt (camelCase, NOT n.created_at) */}
+
                 <div style={{ fontSize:'0.714rem',color:'var(--color-text-muted)',marginTop:4 }}>{fmt(n.createdAt)}</div>
               </div>
               {!n.isRead && <div style={{ width:8,height:8,borderRadius:'50%',background:'var(--color-primary)',flexShrink:0,marginTop:3 }}/>}

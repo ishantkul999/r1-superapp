@@ -13,26 +13,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-/**
- * REPLACE the existing NotificationService.java.
- *
- * DROP AT:
- *   services/spring-boot/notification-service/src/main/java/com/r1/notification/service/NotificationService.java
- *
- * CHANGES:
- *   + markAllReadForUser() — used by PUT /mark-all-read
- *   + send() now passes null for data instead of "{}" to avoid jsonb cast issues
- *     when the @JdbcTypeCode fix is not yet applied
- *   + All Kafka listeners wrapped in try-catch to prevent consumer thread death
- *   + NEW: send() now publishes a "notification.created" Kafka event after
- *     persisting. sos-service's Kafka bridge consumes this and pushes it
- *     live to the user's "user:{userId}" Socket.io room, so the frontend
- *     notification bell updates instantly instead of waiting up to 8s for
- *     the next poll. This replaces polling as the primary delivery
- *     mechanism — NotificationDropdown.jsx still polls as a fallback in
- *     case the socket connection drops, but that's now a safety net, not
- *     the main path.
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -52,8 +32,6 @@ public class NotificationService {
                 .title(title != null ? title : "Notification")
                 .body(body  != null ? body  : "")
                 .type(type)
-                // Pass null for data to avoid jsonb cast error if @JdbcTypeCode not applied yet
-                // Once Notification.java entity fix is applied, valid JSON strings work fine
                 .data(data != null && !data.isBlank() && !data.equals("null") ? data : null)
                 .build();
         Notification saved = notificationRepository.save(n);
@@ -69,9 +47,6 @@ public class NotificationService {
                     "createdAt", saved.getCreatedAt().toString()
             ));
         } catch (Exception e) {
-            // Never let a Kafka publish failure roll back or block the
-            // notification itself — the row is already saved, and polling
-            // will still pick it up as a fallback.
             log.warn("[Notif] Failed to publish notification.created for user {}: {}", userId, e.getMessage());
         }
 
@@ -99,8 +74,6 @@ public class NotificationService {
         return notificationRepository.markAllReadForUser(userId);
     }
 
-    // ── Kafka Listeners ───────────────────────────────────────────────────────
-    // All wrapped in try-catch: a single bad message must not kill the consumer thread.
 
     @KafkaListener(topics = "porter.booked", groupId = "notification-service")
     public void onPorterBooked(Map<String, Object> event) {

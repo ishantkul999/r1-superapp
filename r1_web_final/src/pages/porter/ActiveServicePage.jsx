@@ -1,32 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../lib/api.js';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// ROOT CAUSE FIXED IN THIS FILE:
-//
-// The previous version called endpoints that DO NOT EXIST on the backend:
-//   POST /api/porter/jobs/{id}/verify-pin   → 404 (no such route)
-//   PUT  /api/porter/jobs/{id}/status        → 404 (no such route)
-//   POST /api/porter/jobs/{id}/cod-collected → 404 (no such route)
-// and read fields that don't exist on PorterBooking (fromLocation, toLocation,
-// bookingId, amount, paymentMode).
-//
-// Because every action silently failed (caught with an empty `catch {}`),
-// a porter could accept a job but never actually start or complete it —
-// the booking stayed ACCEPTED/IN_PROGRESS forever. That's why porters kept
-// getting "Porter already has an active booking" on every future accept
-// attempt: their previous job was never actually finished.
-//
-// CORRECT backend contract:
-//   GET  /api/porter/active-job                → PorterBooking | 204 | 404
-//   POST /api/porter/bookings/{id}/start        body: { pin }  → verifies the
-//        service PIN AND moves ACCEPTED → IN_PROGRESS in one call (there is
-//        no separate verify-pin step on the backend)
-//   POST /api/porter/bookings/{id}/complete     → IN_PROGRESS → COMPLETED
-//   There is no cod-collected endpoint — COD confirmation is a client-side
-//   gate only, same as before, just no longer calling a dead endpoint.
-// ─────────────────────────────────────────────────────────────────────────────
-
 function extractErr(err, fb = 'Something went wrong') {
   const d = err?.response?.data;
   if (!d) return err?.message || fb;
@@ -64,7 +38,6 @@ export default function ActiveServicePage() {
 
   useEffect(load, []);
 
-  // Starting a service ALSO verifies the PIN — there is no separate step.
   const startService = async () => {
     if (pin.length !== 4) { setPinError('Enter 4-digit PIN'); return; }
     setStarting(true); setPinError('');
@@ -100,14 +73,13 @@ export default function ActiveServicePage() {
 
   if (!activeJob) return (
     <div className="empty-state" style={{ padding: 80 }}>
-      <div className="empty-state-icon">🏁</div>
       <div className="empty-state-title">No Active Job</div>
       <div className="empty-state-desc">You don't have any ongoing service right now.</div>
     </div>
   );
 
   return (
-    <div style={{ maxWidth: 580, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 18 }}>
+    <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 18 }}>
 
       {banner && (
         <div className={`alert alert-${banner.type}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -159,11 +131,11 @@ export default function ActiveServicePage() {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, fontSize: '0.857rem' }}>
           <div style={{ background: 'var(--color-surface)', padding: '10px 12px', borderRadius: 8 }}>
             <div style={{ fontSize: '0.714rem', color: 'var(--color-text-muted)', marginBottom: 2 }}>FROM</div>
-            <div style={{ fontWeight: 600 }}>📍 {activeJob.pickupLocation || '—'}</div>
+            <div style={{ fontWeight: 600 }}>{activeJob.pickupLocation || '—'}</div>
           </div>
           <div style={{ background: 'var(--color-surface)', padding: '10px 12px', borderRadius: 8 }}>
             <div style={{ fontSize: '0.714rem', color: 'var(--color-text-muted)', marginBottom: 2 }}>TO</div>
-            <div style={{ fontWeight: 600 }}>🏁 {activeJob.destination || '—'}</div>
+            <div style={{ fontWeight: 600 }}>{activeJob.destination || '—'}</div>
           </div>
         </div>
         {activeJob.passengerName && (
@@ -181,10 +153,9 @@ export default function ActiveServicePage() {
         </div>
       </div>
 
-      {/* PIN verification + start — ONE call on the backend (start = verify + begin) */}
       {activeJob.status === 'ACCEPTED' && (
         <div className="card" style={{ border: '2px solid var(--color-warning-light)' }}>
-          <h4 style={{ marginBottom: 6 }}>🔐 Start Service</h4>
+          <h4 style={{ marginBottom: 6 }}>Start Service</h4>
           <p style={{ fontSize: '0.857rem', color: 'var(--color-text-muted)', marginBottom: 14 }}>
             Ask the passenger for their 4-digit service PIN to begin.
           </p>
@@ -207,12 +178,10 @@ export default function ActiveServicePage() {
         </div>
       )}
 
-      {/* COD collection — client-side confirmation gate only; the backend
-          has no dedicated cod-collected endpoint */}
       {activeJob.paymentMethod === 'COD' && !codCollected && activeJob.status === 'IN_PROGRESS' && (
         <div className="alert alert-warning">
           <div>
-            <strong>💵 COD Collection Required</strong>
+            <strong>COD Collection Required</strong>
             <div style={{ marginTop: 4, fontSize: '0.857rem' }}>
               Collect ₹{Number(activeJob.totalAmount || 0).toFixed(2)} in cash from the passenger before completing the job.
             </div>

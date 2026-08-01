@@ -113,10 +113,10 @@ const isPhoneValid =
         {/* Features list */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14, width: '100%', maxWidth: 380 }}>
           {[
-            { icon: '🛄', label: 'Licensed Porter Service',     desc: 'Book trained porters at fixed CRIS rates' },
-            { icon: '🏨', label: 'Station Rooms & Lockers',    desc: 'Retiring rooms and secure luggage storage' },
-            { icon: '🤖', label: 'AI Travel Assistant',         desc: 'Multilingual help in Hindi, Gujarati, English' },
-            { icon: '🚨', label: 'Emergency SOS',              desc: 'Instant RPF alert with GPS location sharing' },
+            { label: 'Licensed Porter Service',     desc: 'Book trained porters at fixed CRIS rates' },
+            { label: 'Station Rooms & Lockers',    desc: 'Retiring rooms and secure luggage storage' },
+            { label: 'AI Travel Assistant',         desc: 'Multilingual help in Hindi, Gujarati, English' },
+            { label: 'Emergency SOS',              desc: 'Instant RPF alert with GPS location sharing' },
           ].map(f => (
             <div key={f.label} style={{
               display: 'flex', alignItems: 'center', gap: 12,

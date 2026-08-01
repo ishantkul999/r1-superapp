@@ -15,9 +15,9 @@ const MAX_REV = Math.max(...WEEK.map(d => d.revenue));
 export default function StationAnalyticsPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <div><h1 className="page-title">📈 Analytics</h1><p className="page-subtitle">ADI station performance — this week</p></div>
+      <div><h1 className="page-title"> Analytics</h1><p className="page-subtitle">ADI station performance — this week</p></div>
       <div className="stats-grid">
-        {[{ icon: '💰', label: 'Week Revenue', value: '₹77,700' }, { icon: '📦', label: 'Total Bookings', value: '412' }, { icon: '🛄', label: 'Porter Jobs', value: '312' }, { icon: '🛏', label: 'Room Nights', value: '83' }].map(s => (
+        {[{ label: 'Week Revenue', value: '₹77,700' }, {label: 'Total Bookings', value: '412' }, {label: 'Porter Jobs', value: '312' }, {label: 'Room Nights', value: '83' }].map(s => (
           <div key={s.label} className="stat-card"><div className="stat-icon">{s.icon}</div><div className="stat-value">{s.value}</div><div className="stat-label">{s.label}</div></div>
         ))}
       </div>
@@ -35,7 +35,7 @@ export default function StationAnalyticsPage() {
       </div>
       <div className="card">
         <div style={{ fontWeight: 700, marginBottom: 14 }}>Bookings by Service</div>
-        {[['🛄 Porter', 312, 0.76], ['🛏 Rooms', 83, 0.20], ['🔒 Lockers', 32, 0.08]].map(([label, count, pct]) => (
+        {[['Porter', 312, 0.76], ['Rooms', 83, 0.20], ['Lockers', 32, 0.08]].map(([label, count, pct]) => (
           <div key={label} style={{ marginBottom: 14 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', marginBottom: 6 }}><span>{label}</span><span style={{ fontWeight: 700 }}>{count}</span></div>
             <div style={{ background: 'var(--color-border)', borderRadius: 4, height: 8, overflow: 'hidden' }}>

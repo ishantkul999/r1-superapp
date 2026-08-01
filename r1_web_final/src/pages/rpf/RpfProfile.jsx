@@ -36,7 +36,7 @@ export default function RpfProfile() {
   );
 
   return (
-    <div style={{ maxWidth: 680, margin: '0 auto' }}>
+    <div style={{ maxWidth: 1000, margin: '0 auto' }}>
 
       <div className="page-header">
         <h1 className="page-title">My Profile</h1>

@@ -1,19 +1,42 @@
 import React, { useState } from 'react';
 import api from '../../lib/api.js';
 
+// ── SVG icon set (extracted for AI Trip Planner) ────────────────────────────
+const Icon = ({ name, size = 16, color = "currentColor" }) => {
+  const icons = {
+    map:       <><polygon points="3 6 9 3 15 6 21 3 21 17 15 20 9 17 3 20 3 6"/><line x1="9" y1="3" x2="9" y2="17"/><line x1="15" y1="6" x2="15" y2="20"/></>,
+    alert:     <><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><path d="M12 9v4M12 17h.01"/></>,
+    sparkles:  <><path d="M12 3l2 5 5 2-5 2-2 5-2-5-5-2 5-2z"/><path d="M19 15l1 2.5 2.5 1-2.5 1-1 2.5-1-2.5-2.5-1 2.5-1z"/></>,
+    lightbulb: <><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 1 0 6 8c0 1.5.8 2.8 1.5 3.5.76.76 1.23 1.52 1.41 2.5"/></>,
+    building:  <><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></>,
+    utensils:  <><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></>,
+    bag:       <><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></>,
+    tree:      <><path d="M12 22v-6M12 16a6 6 0 1 0-6-6c0 2.22 1.18 4.16 2.94 5.23M12 16a6 6 0 1 1 6-6c0 2.22-1.18 4.16-2.94 5.23"/></>,
+    palette:   <><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></>,
+    temple:    <><path d="M2 22h20"/><path d="M12 2l-5 5v13h10V7z"/><path d="M12 2v5"/><path d="M7 12h10"/></>,
+    globe:     <><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></>,
+  };
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      {icons[name] || null}
+    </svg>
+  );
+};
+
 const INTEREST_OPTIONS = [
-  { key: 'heritage',  label: '🏛 Heritage & History' },
-  { key: 'food',      label: '🍛 Food & Street Eats' },
-  { key: 'shopping',  label: '🛍 Shopping & Markets' },
-  { key: 'nature',    label: '🌳 Nature & Riverfront' },
-  { key: 'culture',   label: '🎭 Culture & Museums' },
-  { key: 'religious', label: '🛕 Religious Sites' },
+  { key: 'heritage',  label: 'Heritage & History',  icon: 'building' },
+  { key: 'food',      label: 'Food & Street Eats',  icon: 'utensils' },
+  { key: 'shopping',  label: 'Shopping & Markets',  icon: 'bag' },
+  { key: 'nature',    label: 'Nature & Riverfront', icon: 'tree' },
+  { key: 'culture',   label: 'Culture & Museums',   icon: 'palette' },
+  { key: 'religious', label: 'Religious Sites',     icon: 'temple' },
 ];
 
 const LANGS = [
-  { code: 'en', label: '🇬🇧 English' },
-  { code: 'hi', label: '🇮🇳 हिंदी' },
-  { code: 'gu', label: '🟠 ગુજરાતી' },
+  { code: 'en', label: 'English' },
+  { code: 'hi', label: 'हिंदी' },
+  { code: 'gu', label: 'ગુજરાતી' },
 ];
 
 function extractErr(err, fb = 'Could not generate itinerary right now') {
@@ -43,28 +66,16 @@ export default function ItineraryPlannerPage() {
     if (interests.length === 0) { setError('Pick at least one interest.'); return; }
     setLoading(true); setError(null); setItinerary(null);
     try {
-      // POST /api/ai/planner/itinerary — RAG-grounded, generated from
-      // whatever has been ingested into ai_svc.knowledge_base.
-      //
-      // IMPORTANT: the backend returns { itinerary: "<JSON string>",
-      // language, model } — the "itinerary" field is the raw text the LLM
-      // produced, NOT a parsed object. It has to be JSON.parse()'d here.
-      // Reading data.title / data.days directly (the previous version)
-      // always returned undefined, which is why nothing rendered below
-      // the "Your Itinerary" heading.
       const { data } = await api.post('/api/ai/planner/itinerary', {
         budgetMin, budgetMax, durationDays, interests, language,
       });
 
       let raw = data.itinerary;
       if (typeof raw !== 'string') {
-        // In case a future backend version parses it server-side already.
         setItinerary(raw);
         return;
       }
 
-      // The LLM sometimes wraps JSON in ```json ... ``` code fences —
-      // strip those before parsing.
       raw = raw.trim().replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '');
 
       let parsed;
@@ -76,9 +87,6 @@ export default function ItineraryPlannerPage() {
         return;
       }
 
-      // GroqChatClient returns {"error":"AI service temporarily unavailable"}
-      // (still valid JSON) when the Groq call itself fails — surface that
-      // as an error rather than silently rendering an empty itinerary card.
       if (parsed.error) {
         setError(parsed.error);
         return;
@@ -93,18 +101,20 @@ export default function ItineraryPlannerPage() {
   };
 
   return (
-    <div style={{ maxWidth: 720, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 18 }}>
+    <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 18 }}>
 
       {/* Header */}
       <div className="card" style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 12 }}>
         <div style={{
           width: 40, height: 40, borderRadius: '50%',
           background: 'linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.143rem',
-        }}>🗺️</div>
+          display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff'
+        }}>
+          <Icon name="map" size={20} />
+        </div>
         <div>
           <div style={{ fontWeight: 600, fontSize: '0.929rem' }}>AI Trip Planner</div>
-          <div style={{ fontSize: '0.714rem', color: 'var(--color-text-muted)' }}>Personalized Ahmedabad itinerary · Spring AI + RAG</div>
+          <div style={{ fontSize: '0.714rem', color: 'var(--color-text-muted)' }}>Personalized Ahmedabad itinerary</div>
         </div>
       </div>
 
@@ -154,7 +164,9 @@ export default function ItineraryPlannerPage() {
                 type="button"
                 className={`chip ${interests.includes(opt.key) ? 'active' : ''}`}
                 onClick={() => toggleInterest(opt.key)}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
               >
+                <Icon name={opt.icon} size={14} />
                 {opt.label}
               </button>
             ))}
@@ -170,17 +182,33 @@ export default function ItineraryPlannerPage() {
                 type="button"
                 className={`chip ${language === l.code ? 'active' : ''}`}
                 onClick={() => setLanguage(l.code)}
+                style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
               >
+                <Icon name="globe" size={12} />
                 {l.label}
               </button>
             ))}
           </div>
         </div>
 
-        {error && <div className="alert alert-error">⚠️ {error}</div>}
+        {error && (
+          <div className="alert alert-error" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Icon name="alert" size={16} />
+            {error}
+          </div>
+        )}
 
-        <button className="btn btn-primary btn-lg" onClick={generate} disabled={loading}>
-          {loading ? <><span className="spinner" /> Generating your itinerary…</> : '✨ Generate Itinerary'}
+        <button 
+          className="btn btn-primary btn-lg" 
+          onClick={generate} 
+          disabled={loading}
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+        >
+          {loading ? (
+            <><span className="spinner" style={{ width: 16, height: 16 }} /> Generating your itinerary…</>
+          ) : (
+            <><Icon name="sparkles" size={18} /> Generate Itinerary</>
+          )}
         </button>
       </div>
 
@@ -199,9 +227,6 @@ export default function ItineraryPlannerPage() {
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {(day.activities || []).map((act, i) => {
-                  // The LLM doesn't always use exactly "place"/"note" —
-                  // fall back across the field names it commonly produces
-                  // instead of rendering blank text.
                   const place = act.place || act.location || act.activity || act.title || act.name || act.spot;
                   const note  = act.note || act.description || act.details || act.info || act.cost;
                   return (
@@ -220,7 +245,10 @@ export default function ItineraryPlannerPage() {
 
           {Array.isArray(itinerary.tips) && itinerary.tips.length > 0 && (
             <div style={{ marginTop: 8, padding: '10px 14px', background: 'rgba(27,58,107,0.04)', borderRadius: 8 }}>
-              <div style={{ fontWeight: 600, fontSize: '0.8rem', marginBottom: 6 }}>💡 Tips</div>
+              <div style={{ fontWeight: 600, fontSize: '0.8rem', marginBottom: 6, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Icon name="lightbulb" size={14} />
+                Tips
+              </div>
               <ul style={{ margin: 0, paddingLeft: 18, fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>
                 {itinerary.tips.map((t, i) => <li key={i}>{t}</li>)}
               </ul>

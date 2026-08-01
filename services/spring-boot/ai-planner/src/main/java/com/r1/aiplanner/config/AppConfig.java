@@ -7,6 +7,5 @@ import org.springframework.kafka.core.KafkaTemplate;
 
 @Configuration
 public class AppConfig {
-    // JdbcTemplate is auto-configured by Spring Boot DataSource
-    // This class exists for any additional beans needed
+
 }

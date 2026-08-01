@@ -28,11 +28,6 @@ spring:
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:r1redispass}
 
-  # ── Spring AI — SAME vector store as ai-planner ─────────────────────────
-  # This is what lets the assistant ground answers (porter pricing, locker
-  # rates, station facilities, etc.) in ai_svc.vector_store instead of the
-  # LLM guessing, and it's the same table ai-planner's Knowledge Base admin
-  # page ingests into — no duplicate ingestion needed.
   ai:
     model:
       chat: openai
@@ -59,7 +54,6 @@ spring:
         index-type: HNSW
         initialize-schema: true
 
-# ── Chat session config (unchanged) ───────────────────────────────────────────
 chat:
   session-ttl-minutes: 30
   max-history-messages: 20

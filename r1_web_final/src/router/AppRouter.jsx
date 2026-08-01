@@ -5,17 +5,17 @@ import { ROLES } from '../config/constants.js';
 import AppShell from '../components/shared/AppShell.jsx';
 
 // ── Public pages ──────────────────────────────────────────────────────────────
-const LandingPage  = lazy(() => import('../pages/landing/LandingPage.jsx'));   // NEW
+const LandingPage  = lazy(() => import('../pages/landing/LandingPage.jsx'));   
 const LoginPage    = lazy(() => import('../pages/auth/LoginPage.jsx'));
-const OtpPage      = lazy(() => import('../pages/auth/OtpVerifyPage.jsx'));    // ✅ correct filename
-const TermsPage    = lazy(() => import('../pages/legal/TermsPage.jsx'));       // NEW
-const PrivacyPage  = lazy(() => import('../pages/legal/PrivacyPage.jsx'));     // NEW
+const OtpPage      = lazy(() => import('../pages/auth/OtpVerifyPage.jsx'));    
+const TermsPage    = lazy(() => import('../pages/legal/TermsPage.jsx'));       
+const PrivacyPage  = lazy(() => import('../pages/legal/PrivacyPage.jsx'));     
 
 // ── User ──────────────────────────────────────────────────────────────────────
 const UserDashboard     = lazy(() => import('../pages/user/UserDashboard.jsx'));
 const PorterBookingPage = lazy(() => import('../pages/user/PorterBookingPage.jsx'));
 const PnrPage           = lazy(() => import('../pages/user/PnrPage.jsx'));
-const StationRoomsPage  = lazy(() => import('../pages/user/RoomsPage.jsx'));   // ✅ actual filename
+const StationRoomsPage  = lazy(() => import('../pages/user/RoomsPage.jsx'));   
 const LockersPage       = lazy(() => import('../pages/user/LockersPage.jsx'));
 const AiChatPage        = lazy(() => import('../pages/user/AiChatPage.jsx'));
 const ItineraryPlannerPage = lazy(() => import('../pages/user/ItineraryPlannerPage.jsx'));
@@ -24,14 +24,14 @@ const UserProfilePage   = lazy(() => import('../pages/user/ProfilePage.jsx'));
 
 // ── Porter ────────────────────────────────────────────────────────────────────
 const PorterDashboard = lazy(() => import('../pages/porter/PorterDashboard.jsx'));
-const PorterRequests  = lazy(() => import('../pages/porter/IncomingRequestsPage.jsx')); // ✅
-const PorterActiveJob = lazy(() => import('../pages/porter/ActiveServicePage.jsx'));    // ✅
-const PorterEarnings  = lazy(() => import('../pages/porter/EarningsPage.jsx'));         // ✅
-const PorterProfile   = lazy(() => import('../pages/porter/PorterProfile.jsx'));        // NEW
+const PorterRequests  = lazy(() => import('../pages/porter/IncomingRequestsPage.jsx')); 
+const PorterActiveJob = lazy(() => import('../pages/porter/ActiveServicePage.jsx'));    
+const PorterEarnings  = lazy(() => import('../pages/porter/EarningsPage.jsx'));         
+const PorterProfile   = lazy(() => import('../pages/porter/PorterProfile.jsx'));        
 
 // ── Supervisor ────────────────────────────────────────────────────────────────
 const SupervisorDashboard = lazy(() => import('../pages/supervisor/SupervisorDashboard.jsx'));
-const LivePorterMap       = lazy(() => import('../pages/supervisor/LivePorterMapPage.jsx')); // ✅
+const LivePorterMap       = lazy(() => import('../pages/supervisor/LivePorterMapPage.jsx')); 
 const UnassignedQueue     = lazy(() => import('../pages/supervisor/UnassignedQueuePage.jsx'));
 const PorterDirectory     = lazy(() => import('../pages/supervisor/PorterDirectoryPage.jsx'));
 const CreatePorter        = lazy(() => import('../pages/supervisor/CreatePorterPage.jsx'));
@@ -39,25 +39,25 @@ const ManualAssignment   = lazy(() => import('../pages/supervisor/ManualAssignme
 
 // ── RPF ───────────────────────────────────────────────────────────────────────
 const RpfDashboard    = lazy(() => import('../pages/rpf/RpfDashboard.jsx'));
-const LiveSosMap      = lazy(() => import('../pages/rpf/SosMapPage.jsx'));         // ✅ actual filename
+const LiveSosMap      = lazy(() => import('../pages/rpf/SosMapPage.jsx'));         
 const IncidentHistory = lazy(() => import('../pages/rpf/IncidentHistoryPage.jsx'));
-const RpfProfile      = lazy(() => import('../pages/rpf/RpfProfile.jsx'));         // NEW
+const RpfProfile      = lazy(() => import('../pages/rpf/RpfProfile.jsx'));         
 
 // ── Station Control ───────────────────────────────────────────────────────────
 const StationControlDashboard = lazy(() => import('../pages/station-control/StationControlDashboard.jsx'));
 const StationAnalytics        = lazy(() => import('../pages/station-control/StationAnalyticsPage.jsx'));
 const ManageStaff             = lazy(() => import('../pages/station-control/ManageStaffPage.jsx'));
 const AllBookings             = lazy(() => import('../pages/station-control/AllBookingsPage.jsx'));
-const StationRoomsMgmt        = lazy(() => import('../pages/station-control/StationRoomsPage.jsx'));  // ✅ exists
+const StationRoomsMgmt        = lazy(() => import('../pages/station-control/StationRoomsPage.jsx'));  
 const DigitalLockersMgmt      = lazy(() => import('../pages/station-control/DigitalLockersPage.jsx'));
 const StationAuditLogs        = lazy(() => import('../pages/station-control/AuditLogsPage.jsx'));
-const StationBroadcastPage    = lazy(() => import('../pages/station-control/BroadcastPage.jsx'));     // NEW (separate from superadmin)
-const StaffOnboardingPage     = lazy(() => import('../pages/station-control/StaffOnboardingPage.jsx')); // NEW
+const StationBroadcastPage    = lazy(() => import('../pages/station-control/BroadcastPage.jsx'));     
+const StaffOnboardingPage     = lazy(() => import('../pages/station-control/StaffOnboardingPage.jsx')); 
 
 // ── SuperAdmin ────────────────────────────────────────────────────────────────
 const SuperAdminDashboard = lazy(() => import('../pages/superadmin/SuperAdminDashboard.jsx'));
 const UserManagement      = lazy(() => import('../pages/superadmin/UserManagementPage.jsx'));
-const StationOnboarding   = lazy(() => import('../pages/superadmin/StationOnboardingPage.jsx')); // NEW
+const StationOnboarding   = lazy(() => import('../pages/superadmin/StationOnboardingPage.jsx')); 
 const AiKnowledgeBase     = lazy(() => import('../pages/superadmin/AiKnowledgeBasePage.jsx'));
 const SystemConfig        = lazy(() => import('../pages/superadmin/SystemConfigPage.jsx'));
 const GlobalAuditLogs     = lazy(() => import('../pages/superadmin/GlobalAuditLogsPage.jsx'));

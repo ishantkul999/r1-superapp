@@ -13,20 +13,6 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 import java.util.UUID;
 
-/**
- * InternalAuthController — internal-only endpoints for inter-service calls.
- *
- * DROP AT:
- *   services/spring-boot/auth-service/src/main/java/com/r1/auth/controller/InternalAuthController.java
- *
- * These endpoints are called server-to-server only (not through the gateway).
- * Protected by X-Internal-Secret header.
- *
- * Endpoints:
- *   POST /internal/auth/create-staff       — create a new staff user (SCR/Supervisor/RPF)
- *   GET  /internal/auth/user-by-phone      — lookup user by phone number
- *   GET  /internal/auth/health             — liveness check
- */
 @Slf4j
 @RestController
 @RequestMapping("/internal/auth")
@@ -46,19 +32,6 @@ public class InternalAuthController {
         return internalSecret.equals(secret);
     }
 
-    // ── POST /internal/auth/create-staff ─────────────────────────────────────
-
-    /**
-     * Creates a new user account with the given role.
-     * Called by:
-     *   - user-service station-control.routes.js (creates SUPERVISOR / RPF)
-     *   - user-service superadmin.routes.js (creates STATION_CONTROL_ROOM)
-     *
-     * After creation, an OTP is sent to the phone number so the new staff
-     * member can log in immediately on first use.
-     *
-     * Returns 409 Conflict if phone already registered.
-     */
     @PostMapping("/create-staff")
     public ResponseEntity<?> createStaff(
             @RequestHeader(value = "X-Internal-Secret", required = false) String secret,
@@ -121,12 +94,6 @@ public class InternalAuthController {
         }
     }
 
-    // ── GET /internal/auth/user-by-phone ─────────────────────────────────────
-
-    /**
-     * Returns user ID for a given phone number.
-     * Used as fallback when create-staff returns 409 (user already exists).
-     */
     @GetMapping("/user-by-phone")
     public ResponseEntity<?> getUserByPhone(
             @RequestHeader(value = "X-Internal-Secret", required = false) String secret,

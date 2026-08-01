@@ -39,10 +39,6 @@ services:
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
-      # Default JVM heap for Zookeeper is often ~1GB — massive overkill for
-      # a single-node dev broker with a handful of topics. On an 8GB
-      # machine also running 8 Spring Boot services + Postgres + Redis +
-      # Ollama, this is pure waste competing for the same RAM.
       KAFKA_HEAP_OPTS: "-Xmx256M -Xms256M"
     ports:
       - "2181:2181"
@@ -63,9 +59,6 @@ services:
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
-      # Default Kafka broker heap is 1GB. For local dev with a handful of
-      # topics and low throughput, 512MB is comfortably enough and frees up
-      # real RAM for the services actually under test.
       KAFKA_HEAP_OPTS: "-Xmx512M -Xms512M"
     healthcheck:
       test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]

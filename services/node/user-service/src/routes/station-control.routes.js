@@ -1,21 +1,5 @@
 'use strict';
-/**
- * station-control.routes.js — REPLACE existing file
- *
- * CRITICAL FIX:
- *   ROOT CAUSE of POST /api/station/control/staff/onboard → 500:
- *   "there is no unique or exclusion constraint matching the ON CONFLICT specification"
- *
- *   The INSERT ... ON CONFLICT (user_id) DO UPDATE requires a UNIQUE constraint
- *   on station_svc.staff_onboarding.user_id. The table was created with only
- *   a regular index, not a UNIQUE constraint.
- *
- *   TWO-PART FIX:
- *   A) Run fix_staff_onboarding_constraint.sql to add the UNIQUE constraint.
- *   B) This file also adds a defensive fallback — it first tries INSERT,
- *      and if the row already exists (duplicate user_id), it falls back to
- *      a plain UPDATE. This way onboarding works even before the migration.
- */
+
 const express = require('express');
 const router  = express.Router();
 const pool    = require('../db');
@@ -104,10 +88,7 @@ router.post('/staff/onboard', async (req, res, next) => {
     // ── Step 3: Get station ID ────────────────────────────────────────────────
     const stationId = await getStationId(callerId);
 
-    // ── Step 4: Upsert staff_onboarding ──────────────────────────────────────
-    // FIX: Use INSERT ... ON CONFLICT only if UNIQUE constraint exists.
-    // Defensive pattern: try INSERT first; if it fails with unique_violation (23505),
-    // fall back to UPDATE. This works before AND after running the migration.
+
     try {
       await client.query(
         `INSERT INTO station_svc.staff_onboarding
@@ -118,7 +99,6 @@ router.post('/staff/onboard', async (req, res, next) => {
       );
     } catch (insertErr) {
       if (insertErr.code === '23505') {
-        // user_id already exists — just update the existing row
         await client.query(
           `UPDATE station_svc.staff_onboarding
            SET role         = $1,
@@ -150,7 +130,6 @@ router.post('/staff/onboard', async (req, res, next) => {
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('[user-service] POST /api/station/control/staff/onboard —', err.message);
-    // Always return a plain string — prevent React "Objects are not valid as a React child" crash
     next({ status: 500, message: err.message || 'Staff onboarding failed' });
   } finally {
     client.release();
@@ -322,8 +301,6 @@ router.post('/broadcast', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// ── Global error handler (string-only responses) ──────────────────────────────
-// Must be the last middleware in this router
 router.use((err, req, res, next) => {
   const msg = typeof err.message === 'string' ? err.message : 'Internal server error';
   res.status(err.status || 500).json({ error: msg });

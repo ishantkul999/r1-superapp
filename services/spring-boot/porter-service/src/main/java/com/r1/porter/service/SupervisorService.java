@@ -17,13 +17,6 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-/**
- * SupervisorService handles all supervisor-specific business logic.
- * Lives inside porter-service so it can reuse Porter/PorterBooking repos directly.
- *
- * DROP THIS FILE at:
- *   services/spring-boot/porter-service/src/main/java/com/r1/porter/service/SupervisorService.java
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -33,8 +26,6 @@ public class SupervisorService {
     private final PorterBookingRepository bookingRepository;
 
     private static final ZoneId IST = ZoneId.of("Asia/Kolkata");
-
-    // ── Dashboard stats ───────────────────────────────────────────────────────
 
     public SupervisorDashboardDto getDashboard() {
         Instant startOfToday = LocalDate.now().atStartOfDay(IST).toInstant();
@@ -59,14 +50,6 @@ public class SupervisorService {
                 .build();
     }
 
-    // ── Available porters for manual escalation dispatch ────────────────────
-    // FIX: this previously returned ONLINE porters. But online porters
-    // (app open, capable of auto-accepting) already had a 15-second window
-    // to accept the booking before it escalated to the supervisor queue —
-    // if they didn't take it, offering them again here is redundant. The
-    // supervisor's manual-assign pool should be the OFFLINE, active porters
-    // physically on duty who don't have the app open and can only be
-    // dispatched by radio/phone call.
 
     public List<Porter> getAvailablePorters() {
         List<Porter> offline = porterRepository.findByIsOnlineFalseAndIsActiveTrue();
@@ -76,8 +59,6 @@ public class SupervisorService {
                 .filter(p -> bookingRepository.findActiveBookingsByPorter(p.getId()).isEmpty())
                 .collect(Collectors.toList());
     }
-
-    // ── Supervisor manual assignment ──────────────────────────────────────────
 
     @Transactional
     public PorterBooking supervisorAssign(UUID bookingId, UUID porterId) {

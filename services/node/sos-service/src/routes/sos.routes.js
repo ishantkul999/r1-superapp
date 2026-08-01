@@ -49,7 +49,6 @@ router.post('/trigger', async (req, res, next) => {
 
     const io = req.app.get('io');
     if (io) {
-      // CORRECT event name: 'sos:alert' — RpfDashboard listens for this
       io.to('rpf-room').emit('sos:alert', {
         alertId:        alert.id,
         alertReference: ref,
@@ -58,11 +57,10 @@ router.post('/trigger', async (req, res, next) => {
         lat, lng,
         description,
         triggeredAt:    alert.triggered_at,
-        alarmSound:     true,   // RpfDashboard plays Web Audio alarm on receiving this
+        alarmSound:     true,   
       });
     }
 
-    // Async: notify emergency contacts with GPS location link
     notifyContacts(userId, ref, lat, lng).catch(e => console.error('[SOS] contacts notify failed:', e.message));
 
     res.status(201).json({
@@ -96,8 +94,7 @@ router.post('/:alertId/location', async (req, res, next) => {
 });
 
 // ── GET /api/sos/dashboard ────────────────────────────────────────────────────
-// Returns FLAT stats object — { total, active, resolved, last24h, today, byType }
-// RpfDashboard.jsx reads stats.active, stats.resolved directly
+
 router.get('/dashboard', async (req, res, next) => {
   try {
     if (!STAFF_ROLES.includes(req.headers['x-user-role'])) return res.status(403).json({ error: 'Forbidden' });
@@ -131,7 +128,6 @@ router.get('/active', async (req, res, next) => {
     const { rows } = await pool.query(`SELECT * FROM sos_svc.alerts WHERE status='ACTIVE' ORDER BY triggered_at DESC`);
     if (!rows.length) return res.json([]);
 
-    // Enrich with user names from user-service (non-fatal)
     try {
       const { data: profiles } = await axios.post(
         `${USER_SVC_URL}/internal/users/batch`,

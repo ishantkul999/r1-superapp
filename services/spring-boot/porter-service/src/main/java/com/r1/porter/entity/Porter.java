@@ -7,24 +7,6 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
-/**
- * REPLACE the existing Porter.java entirely.
- *
- * DROP AT:
- *   services/spring-boot/porter-service/src/main/java/com/r1/porter/entity/Porter.java
- *
- * Changes from original:
- *   + employeeId     — railway employee ID (set by Station Control Room at onboarding)
- *   + fullName       — porter's legal name (from onboarding form)
- *   + email          — porter's email (from onboarding form)
- *   + phone          — porter's mobile (from onboarding form)
- *   + dateOfBirth    — porter's DOB
- *   + onboardedBy    — UUID of the Station Control Room user who created this
- *   + onboardedAt    — when the porter was registered
- *
- * These fields populate the Porter's Profile page (read-only — set by Station Control).
- * Original fields (badgeNumber, licenseId, serviceType, zone, platforms, etc.) unchanged.
- */
 @Entity
 @Table(name = "porters", schema = "porter_svc")
 @Data
@@ -72,27 +54,19 @@ public class Porter {
     @Column(name = "station_id")
     private UUID stationId;
 
-    // ── NEW: Profile fields set by Station Control Room at onboarding ─────────
-
-    /** Railway employee ID assigned by the station */
     @Column(name = "employee_id")
     private String employeeId;
 
-    /** Porter's legal full name */
     @Column(name = "full_name")
     private String fullName;
 
-    /** Porter's official email */
     private String email;
 
-    /** Porter's registered mobile (same as auth_svc.users.phone) */
     private String phone;
 
-    /** Porter's date of birth */
     @Column(name = "date_of_birth")
     private java.time.LocalDate dateOfBirth;
 
-    /** UUID of Station Control Room user who onboarded this porter */
     @Column(name = "onboarded_by")
     private UUID onboardedBy;
 

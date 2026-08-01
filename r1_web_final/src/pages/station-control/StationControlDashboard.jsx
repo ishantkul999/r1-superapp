@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid } from 'recharts';
+import { 
+  TrendingUp, Users, ClipboardList, Bed, Lock, 
+  ShieldAlert, IndianRupee, Ticket, HardHat, AlertTriangle, Info 
+} from 'lucide-react';
 import api from '../../lib/api.js';
 
 // ── Station Control Dashboard ─────────────────────────────────────────────────
@@ -14,24 +18,24 @@ export default function StationControlDashboard() {
   }, []);
 
   const NAV_ITEMS = [
-    { icon: '📈', title: 'Analytics', to: '/station-control/analytics', color: '#1B3A6B' },
-    { icon: '👥', title: 'Manage Staff', to: '/station-control/staff', color: '#0D9488' },
-    { icon: '📋', title: 'All Bookings', to: '/station-control/bookings', color: '#7C3AED' },
-    { icon: '🛏', title: 'Station Rooms', to: '/station-control/rooms', color: '#B45309' },
-    { icon: '🔒', title: 'Digital Lockers', to: '/station-control/lockers', color: '#15803D' },
-    { icon: '🔍', title: 'Audit Logs', to: '/station-control/audit', color: '#475569' },
+    { icon: <TrendingUp size={28} />, title: 'Analytics', to: '/station-control/analytics', color: '#1B3A6B' },
+    { icon: <Users size={28} />, title: 'Manage Staff', to: '/station-control/staff', color: '#0D9488' },
+    { icon: <ClipboardList size={28} />, title: 'All Bookings', to: '/station-control/bookings', color: '#7C3AED' },
+    { icon: <Bed size={28} />, title: 'Station Rooms', to: '/station-control/rooms', color: '#B45309' },
+    { icon: <Lock size={28} />, title: 'Digital Lockers', to: '/station-control/lockers', color: '#15803D' },
+    { icon: <ShieldAlert size={28} />, title: 'Audit Logs', to: '/station-control/audit', color: '#475569' },
   ];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       <div className="stats-grid">
         {[
-          { label: "Today's Revenue", value: loading ? '—' : `₹${(stats?.todayRevenue || 0).toLocaleString('en-IN')}`, icon: '💰', variant: 'teal' },
-          { label: 'Total Bookings', value: stats?.todayBookings ?? '—', icon: '📦', variant: 'blue' },
-          { label: 'Active Porters', value: stats?.activePorters ?? '—', icon: '👷', variant: 'green' },
-          { label: 'Rooms Occupied', value: stats?.roomsOccupied ?? '—', icon: '🛏', variant: 'amber' },
-          { label: 'Lockers In Use', value: stats?.lockersInUse ?? '—', icon: '🔒', variant: 'blue' },
-          { label: 'SOS Today', value: stats?.sosToday ?? '—', icon: '🚨', variant: 'red' },
+          { label: "Today's Revenue", value: loading ? '—' : `₹${(stats?.todayRevenue || 0).toLocaleString('en-IN')}`, icon: <IndianRupee size={24} />, variant: 'teal' },
+          { label: 'Total Bookings', value: stats?.todayBookings ?? '—', icon: <Ticket size={24} />, variant: 'blue' },
+          { label: 'Active Porters', value: stats?.activePorters ?? '—', icon: <HardHat size={24} />, variant: 'green' },
+          { label: 'Rooms Occupied', value: stats?.roomsOccupied ?? '—', icon: <Bed size={24} />, variant: 'amber' },
+          { label: 'Lockers In Use', value: stats?.lockersInUse ?? '—', icon: <Lock size={24} />, variant: 'blue' },
+          { label: 'SOS Today', value: stats?.sosToday ?? '—', icon: <AlertTriangle size={24} />, variant: 'red' },
         ].map(s => (
           <div key={s.label} className="stat-card">
             <div className={`stat-icon ${s.variant}`}>{s.icon}</div>
@@ -49,7 +53,7 @@ export default function StationControlDashboard() {
             onMouseEnter={e => e.currentTarget.style.borderColor = n.color}
             onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--color-border-light)'}
           >
-            <div style={{ fontSize: '1.5rem', marginBottom: 8 }}>{n.icon}</div>
+            <div style={{ marginBottom: 8, color: n.color }}>{n.icon}</div>
             <div style={{ fontWeight: 600 }}>{n.title}</div>
           </button>
         ))}
@@ -158,8 +162,9 @@ export function AuditLogsPage() {
 
   return (
     <div>
-      <div className="alert alert-info" style={{ marginBottom: 16, fontSize: '0.814rem' }}>
-        🔍 Complete audit trail of all user actions, API calls, and system events with tamper-proof logging.
+      <div className="alert alert-info" style={{ marginBottom: 16, fontSize: '0.814rem', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <Info size={16} /> 
+        <span>Complete audit trail of all user actions, API calls, and system events with tamper-proof logging.</span>
       </div>
       {loading ? <div style={{ display: 'flex', justifyContent: 'center', padding: 32 }}><div className="spinner spinner-lg" /></div> : (
         <div className="table-wrap">

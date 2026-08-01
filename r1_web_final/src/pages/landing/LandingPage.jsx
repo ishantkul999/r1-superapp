@@ -5,37 +5,31 @@ const NAV_ITEMS = ['Features', 'How It Works', 'Benefits', 'FAQ', 'Contact'];
 
 const FEATURES = [
   {
-    icon: '🛄',
     title: 'Licensed Porter Service',
     desc: 'Book CRIS-regulated porters at transparent fixed rates. Track your porter live and pay securely via UPI or cash.',
     tag: 'Phase 1',
   },
   {
-    icon: '🚂',
     title: 'PNR & Train Status',
     desc: 'Real-time PNR lookup and live train running status directly from NTES. No third-party aggregators.',
     tag: 'Phase 1',
   },
   {
-    icon: '🏨',
     title: 'Station Retiring Rooms',
     desc: 'Check availability and reserve IRCTC retiring rooms and dormitories at Ahmedabad Junction.',
     tag: 'Phase 1',
   },
   {
-    icon: '🔐',
     title: 'Digital Lockers',
     desc: 'Secure 24×7 luggage storage with QR-code access. Available across all major platforms at ADI.',
     tag: 'Phase 1',
   },
   {
-    icon: '🤖',
     title: 'AI Travel Assistant',
     desc: 'Multilingual AI powered by RAG — answers in Hindi, Gujarati, and English about station services and itineraries.',
     tag: 'Phase 1',
   },
   {
-    icon: '🚨',
     title: 'Emergency SOS',
     desc: 'One-tap SOS alert dispatches your GPS location to RPF officers and notifies your emergency contacts.',
     tag: 'Phase 1',
@@ -230,7 +224,6 @@ export default function LandingPage() {
           <div className="landing-feature-grid">
             {FEATURES.map(f => (
               <div key={f.title} className="landing-feature-card">
-                <div className="landing-feature-icon" style={{ fontSize: '1.4rem' }}>{f.icon}</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                   <h3 style={{ fontSize: '0.971rem', fontWeight: 700 }}>{f.title}</h3>
                   <span style={{ fontSize: '0.643rem', fontWeight: 700, background: 'var(--c-teal-light)', color: '#0F766E', padding: '1px 7px', borderRadius: 10 }}>{f.tag}</span>

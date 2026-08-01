@@ -44,10 +44,6 @@ export default function CreatePorterPage() {
 
     setSaving(true);
     try {
-      // Single call: supervisor registers a porter with name + phone.
-      // Backend creates (or links) the auth user for this phone, then registers
-      // the Porter profile. The porter logs in later with OTP on this number —
-      // they do NOT need to have a digital device at the time of onboarding.
       const { data } = await api.post('/api/supervisor/porters/create', {
         name:        form.name.trim(),
         phone:       `+91${form.phone.trim()}`,
@@ -70,7 +66,7 @@ export default function CreatePorterPage() {
   };
 
   return (
-    <div style={{ maxWidth: 600, margin: '0 auto' }}>
+    <div style={{ maxWidth: 1100, margin: '0 auto' }}>
       <div className="page-header">
         <h1 className="page-title">Create Porter Account</h1>
         <p className="page-subtitle">

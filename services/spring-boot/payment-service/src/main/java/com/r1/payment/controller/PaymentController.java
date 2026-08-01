@@ -39,8 +39,7 @@ public class PaymentController {
             @RequestHeader(value = "x-webhook-timestamp", required = false) String timestamp,
             @RequestBody String rawBody,
             @RequestBody(required = false) Map<String, Object> payload) {
-        // Note: use @RequestBody String rawBody for signature verification
-        // Then re-parse JSON manually
+
         paymentService.handleWebhook(rawBody, signature, timestamp, Map.of());
         return ResponseEntity.ok("OK");
     }

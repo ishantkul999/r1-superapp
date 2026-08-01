@@ -15,7 +15,7 @@ export default function PorterDirectoryPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div><h1 className="page-title">👥 Porter Directory</h1><p className="page-subtitle">All registered porters at ADI</p></div>
+        <div><h1 className="page-title">Porter Directory</h1><p className="page-subtitle">All registered porters at ADI</p></div>
         <button className="btn btn-primary" onClick={() => navigate('/supervisor/create-porter')}>+ Register Porter</button>
       </div>
       <input className="form-input" placeholder="Search by name or badge…" value={search} onChange={e => setSearch(e.target.value)} style={{ maxWidth: 320 }} />

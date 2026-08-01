@@ -4,12 +4,6 @@ import api from '../../lib/api.js';
 import useAuthStore from '../../stores/authStore.js';
 import useRealtimeBookings from '../../hooks/useRealtimeBookings.js';
 
-// ── ROOT CAUSE of online/offline toggle issue ─────────────────────────────────
-// Original PorterDashboard.jsx had PUT /api/porter/status toggle.
-// Per spec: "porter whom have access to mobile phone can access porter dashboard"
-// meaning online = logged in with app open. No manual toggle needed.
-// This file auto-sets online via GET /api/porter/dashboard (backend sets isOnline=true on load).
-
 function extractErr(err, fb = 'Something went wrong') {
   const d = err?.response?.data;
   if (!d) return err?.message || fb;
@@ -36,8 +30,6 @@ export default function PorterDashboard() {
 
   const load = () => {
     setLoading(true);
-    // GET /api/porter/dashboard auto-sets porter ONLINE on the backend
-    // No separate PUT /api/porter/status call needed
     api.get('/api/porter/dashboard')
       .then(r => setDashboard(r.data))
       .catch(err => {
@@ -53,7 +45,6 @@ export default function PorterDashboard() {
 
   useEffect(load, []);
 
-  // Real-time: new job assigned to this porter by supervisor
   useRealtimeBookings({
     porterId: dashboard?.porterId,
     onJobAssigned: () => {
@@ -74,7 +65,6 @@ export default function PorterDashboard() {
             {d.zone ? ` · Zone: ${d.zone}` : ''}
           </p>
         </div>
-        {/* Online status indicator — NOT a toggle. Porter is online by being logged in. */}
         {!loading && dashboard && (
           <div style={{ display:'flex', alignItems:'center', gap:8, background:'rgba(21,128,61,0.1)', padding:'8px 16px', borderRadius:20 }}>
             <span style={{ width:9, height:9, borderRadius:'50%', background:'#15803D', display:'inline-block', animation:'pulse 2s infinite' }} />

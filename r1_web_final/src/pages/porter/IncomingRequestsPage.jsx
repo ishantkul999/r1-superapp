@@ -1,27 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import api from '../../lib/api.js';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// ROOT CAUSES FIXED IN THIS FILE:
-//
-// 1. GET /api/porter/requests/pending  → WRONG
-//    CORRECT: GET /api/porter/bookings/pending
-//    (PorterController @GetMapping("/bookings/pending"))
-//
-// 2. POST /api/porter/requests/${id}/accept  → WRONG
-//    CORRECT: POST /api/porter/bookings/${id}/accept
-//    (PorterController @PostMapping("/bookings/{bookingId}/accept"))
-//
-// 3. setRequests(data.requests || [])  → WRONG
-//    Backend returns plain array, not { requests: [] }
-//    CORRECT: setRequests(Array.isArray(data) ? data : [])
-//
-// 4. Accept button had no error display — errors were silently swallowed
-//    Now shows flash banner with actual error message from backend
-//
-// 5. After accepting, shows the service PIN and passenger details clearly
-// ─────────────────────────────────────────────────────────────────────────────
-
 const COUNTDOWN_SEC = 15;
 
 const SVC_LABELS = {
@@ -71,11 +50,6 @@ function RequestCard({ req, onAccept, onDecline, activeJob }) {
     return () => clearInterval(timerRef.current);
   }, [req.id]);
 
-  // Fire the timeout callback to the parent from its own effect, not from
-  // inside setCountdown's functional updater — calling a different
-  // component's setState synchronously during that updater is what caused
-  // the "Cannot update a component while rendering a different component"
-  // warning.
   useEffect(() => {
     if (countdown === 0) {
       clearInterval(timerRef.current);
@@ -165,18 +139,15 @@ function RequestCard({ req, onAccept, onDecline, activeJob }) {
 export default function IncomingRequestsPage() {
   const [requests, setRequests] = useState([]);
   const [loading,  setLoading]  = useState(true);
-  const [accepted, setAccepted] = useState(null);  // last accepted booking detail
+  const [accepted, setAccepted] = useState(null);  
   const [banner,   setBanner]   = useState(null);
-  const [activeJob, setActiveJob] = useState(null); // porter's current ACCEPTED/IN_PROGRESS job, if any
+  const [activeJob, setActiveJob] = useState(null); 
 
   const flash = (type, msg) => {
     setBanner({ type, msg: String(msg) });
     setTimeout(() => setBanner(null), 6000);
   };
 
-  // A porter can only hold one active booking at a time (backend enforces
-  // this with a 409). Checking here up front avoids a confusing failed
-  // Accept click — instead we tell the porter to finish their current job.
   const checkActiveJob = async () => {
     try {
       const { data, status } = await api.get('/api/porter/active-job');
@@ -188,10 +159,7 @@ export default function IncomingRequestsPage() {
 
   const fetchRequests = async () => {
     try {
-      // CORRECT endpoint: GET /api/porter/bookings/pending
-      // (was /api/porter/requests/pending — wrong, that route doesn't exist)
       const { data } = await api.get('/api/porter/bookings/pending');
-      // Backend returns plain List<PorterBooking> — NOT { requests: [] }
       setRequests(Array.isArray(data) ? data : []);
     } catch (err) {
       console.warn('[IncomingRequests] fetch error:', err?.response?.status);
@@ -203,31 +171,23 @@ export default function IncomingRequestsPage() {
   useEffect(() => {
     checkActiveJob();
     fetchRequests();
-    // Poll every 8 seconds as fallback if Socket.io doesn't push
     const poll = setInterval(() => { fetchRequests(); checkActiveJob(); }, 8000);
     return () => clearInterval(poll);
   }, []);
 
   const handleAccept = async (bookingId) => {
     try {
-      // CORRECT endpoint: POST /api/porter/bookings/{bookingId}/accept
-      // (was /api/porter/requests/${id}/accept — wrong route)
       const { data } = await api.post(`/api/porter/bookings/${bookingId}/accept`);
       setRequests(r => r.filter(x => x.id !== bookingId));
       setAccepted(data);
       flash('success', `Accepted! Service PIN: ${data.servicePin}`);
     } catch (err) {
-      // Backend now returns 409 with a specific reason (already accepted,
-      // wrong state, porter already has an active job) or 404 with
-      // PORTER_NOT_REGISTERED — surface whichever message it sends instead
-      // of a generic fallback.
       const status = err?.response?.status;
       const fallback = status === 404
         ? 'Your porter profile could not be found. Contact your supervisor.'
         : 'Could not accept — booking may have been assigned to another porter';
       const msg = extractErr(err, fallback);
       flash('error', msg);
-      // Refresh the list — the booking may no longer be pending.
       fetchRequests();
       checkActiveJob();
     }
@@ -241,7 +201,7 @@ export default function IncomingRequestsPage() {
   };
 
   return (
-    <div style={{ maxWidth:640, margin:'0 auto', display:'flex', flexDirection:'column', gap:16 }}>
+    <div style={{ maxWidth:1100, margin:'0 auto', display:'flex', flexDirection:'column', gap:16 }}>
 
       {/* Header */}
       <div className="page-header" style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
@@ -262,8 +222,6 @@ export default function IncomingRequestsPage() {
         </div>
       </div>
 
-      {/* Active job guard — prevents confusing 409s from trying to accept
-          a new request while one is already in progress */}
       {activeJob && (
         <div className="alert alert-warning">
           You have an active job ({activeJob.bookingReference || `#${activeJob.id?.slice(-8)}`}, status: {activeJob.status}).
@@ -317,7 +275,7 @@ export default function IncomingRequestsPage() {
         </div>
       ) : requests.length === 0 ? (
         <div className="card" style={{ textAlign:'center', padding:'48px 24px' }}>
-          <div style={{ fontSize:'2.5rem', marginBottom:16 }}>⏳</div>
+          <div style={{ fontSize:'2.5rem', marginBottom:16 }}></div>
           <div style={{ fontWeight:600, marginBottom:8 }}>No pending requests</div>
           <div style={{ color:'var(--color-text-muted)', fontSize:'0.857rem' }}>
             New requests appear here automatically. If a request is not accepted within 15 seconds,
