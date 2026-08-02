@@ -1,15 +1,8 @@
 # R1 SuperApp — Smart Passenger Assistance Platform
  
-A microservices-based passenger assistance platform for Indian Railways stations, built as part of a backend development internship focused on Java/Spring Boot service design, event-driven architecture, and applied AI integration.
- 
-**Project status: Minimum Viable Product (MVP).** Core passenger and operations workflows are fully implemented and functional end to end. Third-party integrations beyond the AI layer (payment gateway, live railway data, SMS/push delivery, mapping, and station facility booking systems) are scoped for Phase 2 and are not yet connected to external providers — see Current MVP Scope and Phase 2 Roadmap below for the exact boundary.
- 
----
- 
 ## Table of Contents
  
 - [Overview](#overview)
-- [My Role and Contributions](#my-role-and-contributions)
 - [Architecture](#architecture)
 - [Spring Boot Microservices](#spring-boot-microservices)
 - [Node.js Services](#nodejs-services)
@@ -21,29 +14,21 @@ A microservices-based passenger assistance platform for Indian Railways stations
 - [Current MVP Scope](#current-mvp-scope)
 - [Phase 2 Roadmap](#phase-2-roadmap)
 - [API Documentation](#api-documentation)
-- [Repository Structure](#repository-structure)
 - [Environment Variables](#environment-variables)
 - [Running the Project](#running-the-project)
 - [License](#license)
 ---
  
 ## Overview
+
+R1 SuperApp is a hybrid microservices-based railway passenger assistance platform designed to improve the end-to-end passenger experience at railway stations, using **Ahmedabad Junction (ADI)** as the reference deployment station. The platform combines **Spring Boot** and **Node.js** microservices behind a **Spring Cloud Gateway**, delivering scalable services for authentication, porter booking and dispatch, AI-powered passenger assistance, station operations, emergency response, notifications, and analytics.
+
+The system follows a clear separation of responsibilities. **Spring Boot microservices** implement the core business domains, including authentication, porter management, payments, notifications, AI services, and station administration, while **Node.js microservices** handle lightweight, I/O-intensive services such as user management, SOS, mapping, travel information, tourism, stay recommendations, and vendor discovery. **Apache Kafka** serves as the shared event bus, enabling asynchronous communication and loose coupling between services across both runtimes.
+
+The AI layer is built using **Spring AI**, **Retrieval-Augmented Generation (RAG)**, **semantic vector retrieval with pgvector**, and **Groq Llama models** to provide context-aware passenger assistance and personalized travel itinerary generation.
+
+The current implementation represents the **Minimum Viable Product (MVP)**. Core passenger assistance workflows, role-based dashboards, event-driven communication, and AI capabilities are fully functional. Integration with external railway systems and third-party services—including payment gateways, live train data and digital locker operations—is planned as part of **Phase 2**.
  
-R1 SuperApp is a hybrid microservices platform designed to improve the end-to-end passenger experience at railway stations, using Ahmedabad Junction (ADI) as the reference deployment station. The platform combines Java/Spring Boot and Node.js/Express services behind a Spring Cloud Gateway, covering authentication, porter booking and dispatch, AI-assisted passenger support, station operations, emergency response, and asynchronous notification delivery.
- 
-The system is built around a clear separation of concerns: Spring Boot owns the transactional, business-critical domains (authentication, porter bookings, payments, notifications, AI, station administration), while Node.js services handle lighter-weight, I/O-bound concerns (real-time communication, mapping, tourism and travel data, vendor listings). Kafka connects both runtimes as a shared event bus, so a Spring Boot service and a Node.js service can react to the same domain event without being directly coupled to one another.
- 
-## My Role and Contributions
- 
-As the backend engineer on this project, I designed and implemented all eight Spring Boot microservices independently, including:
- 
-- Service boundaries and domain modeling across authentication, porter operations, payments, notifications, AI, and station administration.
-- The porter booking lifecycle end to end: booking creation, a time-boxed automatic acceptance window for online porters, supervisor-driven manual escalation and dispatch to offline porters, PIN-verified service start, and completion.
-- The API Gateway's routing and JWT-based authentication propagation to all downstream services.
-- Kafka producer/consumer integration across every Spring Boot service, coordinating with the Node.js services on shared event contracts.
-- The AI layer, built on Spring AI, integrating a locally-run Ollama embedding model with Groq-hosted LLM inference behind a single Retrieval-Augmented Generation (RAG) pipeline backed by PostgreSQL and pgvector.
-- Database schema design across eight isolated PostgreSQL schemas, one per service domain, including indexing decisions for the highest-traffic query paths.
-- Connection pool, thread pool, and caching tuning informed by load testing (k6) against realistic passenger-arrival burst traffic patterns rather than flat average-throughput assumptions.
 ## Architecture
  
 ```text
@@ -113,7 +98,6 @@ PostgreSQL is used with schema-based separation, giving each service domain an i
 - `ai_svc` — vector store (pgvector), generated itineraries, chat sessions
 - `user_svc` — passenger profiles, emergency contacts
 - `audit_svc` — cross-service alerting and location trail data for emergency response
-Referential integrity between related tables is enforced at the database level via foreign key constraints, not solely at the application layer. Indexing was applied deliberately to the highest-traffic query paths identified through load testing — most notably porter/booking lookups by user, porter, and status, and notification queries filtered by user and read state.
  
 ## Event-Driven Architecture (Kafka)
  
@@ -256,34 +240,58 @@ Chat inference and embedding generation are deliberately split across two provid
 - Super Admin dashboard, including AI knowledge base management
 ## Current MVP Scope
  
-**Implemented and functional:**
-- Authentication (OTP and Google OAuth)
-- Porter booking, allocation, and supervisor escalation workflow
-- AI Assistant and AI Planner (Groq for inference, Ollama for embeddings — the only external/third-party integrations currently connected)
-- Cash-on-delivery payment recording
-- Kafka-based event integration across all services
-- Real-time notification delivery
-- Role-based dashboards for all operational roles
-- Station administration and staff onboarding
-**Explicitly out of scope for the current MVP:**
-No third-party integrations beyond the AI providers above are connected at this stage. Payment gateway processing, live railway data, SMS and push notification delivery, and mapping all have working internal logic and defined integration points, but currently run in a stubbed/simulated mode pending Phase 2 provider integration. This is a deliberate MVP boundary, not an oversight — it allows the full business logic and event flow to be built, tested, and demonstrated independently of any third-party account setup or cost.
- 
-## Phase 2 Roadmap
- 
-The following integrations are scoped and architecturally accounted for, but not yet connected to a live external provider:
- 
-- Cashfree payment gateway integration
-- Live train running status APIs
-- PNR status via official railway data sources
-- Google Maps services for indoor/outdoor navigation
-- Vendor marketplace
-- Expanded tourism recommendations
-- Retiring room / station stay booking via external booking systems
-- Digital locker integration
-- Station room booking
-- Indoor navigation
-- QR-enabled passenger services
-- SMS and push notification delivery via a live provider
+### Implemented
+- OTP based authentication.
+- Porter booking, allocation, and supervisor escalation workflow.
+- AI Assistant and AI Trip Planner using **Spring AI**, **Groq (Llama 3)** for inference, and **Ollama** for local embedding generation.
+- Retrieval-Augmented Generation (RAG) with semantic retrieval using **pgvector**.
+- Cash-on-delivery (COD) payment recording and transaction workflow.
+- Kafka-based event integration across all services.
+- Real-time notification workflow.
+- Role-based dashboards for User, Porter, Supervisor, RPF, Station Control, and Super Admin.
+- Station administration and staff onboarding.
+- Swagger/OpenAPI documentation aggregated through the API Gateway.
+
+### MVP Boundary
+The current MVP intentionally focuses on implementing and validating the complete business workflow before integrating external service providers.
+Business logic, APIs, database design, event flows, and integration points are fully implemented. External provider integrations are intentionally deferred to **Phase 2**.
+At present, **Groq** and **Ollama** are the only live third-party AI providers integrated into the platform. Other external services—including payment gateways, railway APIs, SMS providers, and mapping services—have well-defined integration points and service abstractions, allowing them to be connected without changes to the core business logic.
+
+# Phase 2 Roadmap
+The architecture has already been designed to support the following production integrations and additional passenger services:
+
+## Third-Party Integrations
+- Cashfree Payment Gateway
+- Live Train Running Status APIs
+- PNR Status APIs
+- Google Maps Platform
+- SMS Gateway
+- Push Notification Provider
+- Hotel/Stay Booking APIs
+- Tourism Information APIs
+- Vendor Partner APIs
+
+## Passenger Services
+- Digital Locker Booking
+- Station Room Booking
+- Retiring Room Booking
+- Cloak Room Booking
+- Food & Vendor Marketplace
+- Multi-modal Travel Planning
+- Tourism Recommendation Engine
+- Nearby Hotels & Accommodation
+- QR-based Passenger Services
+- Voice-enabled AI Assistant
+
+## Platform Enhancements
+- Multi-station deployment
+- Advanced operational analytics
+- Predictive passenger assistance
+- AI-powered demand forecasting
+- Automated porter allocation optimization
+- Expanded multilingual support
+- Native Android and iOS applications
+
 ## API Documentation
  
 Each Spring Boot microservice exposes an OpenAPI specification. The API Gateway aggregates these into a single Swagger UI, allowing every service's API surface to be explored from one place without accessing each microservice individually.
@@ -293,27 +301,41 @@ When running locally:
 ```text
 http://localhost:8080/swagger-ui.html
 ```
- 
-Available API groups:
-- API Gateway
-- Auth Service
-- Porter Service
-- Payment Service
-- Notification Service
-- AI Planner
-- AI Assistant
-- Station Dashboard
-## Repository Structure
- 
-```text
-services/
- |- spring-boot/
- |- node/
-r1_web_final/
-infrastructure/
-README.md
-HOW_TO_RUN.md
-```
+## Screenshots
+
+### User Module
+
+![Landing Page](images/landing-page.png)
+
+![User Dashboard](images/user-dashboard.png)
+
+![Porter Booking](images/porter-booking.png)
+
+![My Bookings](images/my-bookings.png)
+
+![AI Assistant](images/ai-assistant.png)
+
+![Trip Planner](images/trip-planner.png)
+
+![Notifications](images/notifications.png)
+
+### Operations Module
+
+![Porter Dashboard](images/porter-dashboard.png)
+
+![Supervisor Dashboard](images/supervisor-dashboard.png)
+
+![Offline Porter Assignment](images/offline-porter-assignment.png)
+
+![Station Control Room](images/station-control-room.png)
+
+![Station Analytics](images/station-analytics.png)
+
+![Staff Onboarding](images/staff-onboarding.png)
+
+![RPF Dashboard](images/rpf-dashboard.png)
+
+![Super Admin Dashboard](images/superadmin-dashboard.png)
  
 ## Environment Variables
  
@@ -326,7 +348,6 @@ The following must be configured before running the platform:
 - Google OAuth client credentials
 - Kafka broker configuration
 - Ollama base URL and embedding model name
-Third-party service keys for Phase 2 integrations (Cashfree, SMS provider, Firebase, railway data providers) are read from environment configuration where already wired, and default to a safe stub/simulated mode when unset, so the platform runs fully without them during development and demonstration.
  
 ## Running the Project
  
