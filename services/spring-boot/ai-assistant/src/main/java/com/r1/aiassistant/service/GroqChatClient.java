@@ -1,10 +1,5 @@
-// ════════════════════════════════════════════════════════════════════════════
-// This single file can be copied into BOTH services:
-//   ai-assistant → com.r1.aiassistant.service.GroqChatClient
-//   ai-planner   → com.r1.aiplanner.service.GroqChatClient
-// Just change the package declaration.
-// ════════════════════════════════════════════════════════════════════════════
-package com.r1.aiassistant.service;  // change to com.r1.aiplanner.service for ai-planner
+
+package com.r1.aiassistant.service; 
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
