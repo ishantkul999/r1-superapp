@@ -1,5 +1,7 @@
 package com.r1.aiplanner.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
@@ -10,6 +12,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.ai.chat.prompt.ChatOptions;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -23,11 +26,11 @@ public class AiPlannerService {
     private final VectorStore  vectorStore;
     private final JdbcTemplate jdbcTemplate;
     private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final ObjectMapper objectMapper;
 
     @Value("${ai.planner.rag-top-k:5}")
     private int ragTopK;
 
-    // -- Generate Itinerary --------------------------------------------------
     public Map<String, Object> generateItinerary(UUID userId, Map<String, Object> request) {
         String language    = (String) request.getOrDefault("language", "en");
         @SuppressWarnings("unchecked")
@@ -46,14 +49,15 @@ public class AiPlannerService {
                 "Use the provided context about the station and city. " +
                 "Always respond in " +
                 switch (language) { case "hi" -> "Hindi"; case "gu" -> "Gujarati"; default -> "English"; } +
-                ". Output ONLY valid JSON, no markdown code fences, matching EXACTLY this schema " +
-                "(use these exact key names for every field, do not rename or omit any of them): " +
+                ". Output ONLY valid JSON, no markdown code fences. " +
+                "CRITICAL: You must enclose all string values, including times, in double quotes (e.g., \"time\": \"11:30 AM\", NOT \"time\": 11:30). " +
+                "Match EXACTLY this schema: " +
                 "{ \"title\": string, \"summary\": string, " +
                 "\"days\": [ { \"day\": number, \"theme\": string, " +
                 "\"activities\": [ { \"time\": string, \"place\": string, \"note\": string } ] } ], " +
                 "\"tips\": [ string ] }. " +
                 "\"place\" must be the specific name of the location/activity (e.g. \"Sabarmati Ashram\"), " +
-                "and \"note\" must be a short practical detail (travel time, cost, or tip) -- never leave " +
+                "and \"note\" must be a short practical detail -- never leave " +
                 "\"place\" or \"note\" empty. Context:\n" + context;
 
         String userPrompt = String.format(
@@ -69,8 +73,24 @@ public class AiPlannerService {
             response = chatClient.prompt()
                     .system(systemPrompt)
                     .user(userPrompt)
+                    .options(ChatOptions.builder()
+                            .maxTokens(4000)
+                            .temperature(0.2)
+                            .build())
                     .call()
                     .content();
+
+            response = response.replaceAll("(?s)^```(json)?\\s*(.*?)\\s*```$", "$2").trim();
+
+            try {
+                JsonNode jsonNode = objectMapper.readTree(response);
+                response = objectMapper.writeValueAsString(jsonNode);
+            } catch (Exception jsonEx) {
+                log.error("[AiPlanner] LLM generated invalid JSON structure: {}. Raw response: \n{}",
+                        jsonEx.getMessage(), response);
+                response = "{\"error\": \"The AI generated an invalid itinerary format. Please try again.\"}";
+            }
+
         } catch (Exception e) {
             log.error("[AiPlanner] Chat call failed: {}", e.getMessage());
             response = "{\"error\":\"AI service temporarily unavailable\"}";
@@ -91,7 +111,6 @@ public class AiPlannerService {
         return Map.of("itinerary", response, "language", language, "model", "groq/llama3-8b-8192");
     }
 
-    // -- Ingest Knowledge Document -------------------------------------------
     public Map<String, Object> ingestKnowledge(String content, String category,
                                                String source, String language, UUID ingestedBy) {
         Document document = new Document(content, Map.of(
@@ -145,7 +164,7 @@ public class AiPlannerService {
         }
     }
 
-    // -- Delete Knowledge Entry -----------------------------------------------
+    // Delete Knowledge Entry
     public void deleteKnowledge(UUID id) {
         try {
             vectorStore.delete(List.of(id.toString()));
@@ -155,7 +174,7 @@ public class AiPlannerService {
         log.info("[AiPlanner] Deleted knowledge entry: {}", id);
     }
 
-    // -- Re-ingest (re-embed) Knowledge Entry --------------------------------
+    // Re-ingest Knowledge Entry
     public Map<String, Object> reIngestKnowledge(UUID id) {
         Map<String, Object> row;
         try {
@@ -192,7 +211,7 @@ public class AiPlannerService {
         );
     }
 
-    // -- Private: RAG Context Retrieval --------------------------------------
+    // RAG Context Retrieval
     private String retrieveContext(String query, int limit) {
         try {
             List<Document> results = vectorStore.similaritySearch(

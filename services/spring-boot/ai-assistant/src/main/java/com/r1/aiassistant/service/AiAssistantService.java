@@ -3,6 +3,7 @@ package com.r1.aiassistant.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
@@ -10,7 +11,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
-import java.time.Duration;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -23,52 +23,34 @@ public class AiAssistantService {
     private final ChatClient  chatClient;
     private final VectorStore vectorStore;
 
-    @Value("${chat.session-ttl-minutes:30}")
-    private int sessionTtlMinutes;
-
-    @Value("${chat.max-history-messages:20}")
-    private int maxHistoryMessages;
-
     @Value("${chat.rag-top-k:3}")
     private int ragTopK;
 
-    private static final String SESSION_KEY = "chat:session:%s";
-
     public Map<String, Object> chat(UUID userId, String message, String language) {
-        String sessionKey = String.format(SESSION_KEY, userId);
+        String conversationId = userId.toString();
 
-        // Fast path: hardcoded FAQ for the handful of very common intents.
         String intent = detectIntent(message);
         if (intent != null) {
             String faqResponse = getFaqResponse(intent, language);
             if (faqResponse != null) {
-                appendToHistory(sessionKey, "user", message);
-                appendToHistory(sessionKey, "assistant", faqResponse);
                 return Map.of("response", faqResponse, "intent", intent, "source", "FAQ");
             }
         }
 
-        // RAG path: ground the LLM in whatever's been ingested into the
-        // shared knowledge base instead of letting it guess.
         String context = retrieveContext(message, ragTopK);
-
-        List<Map<String, String>> history = getHistory(sessionKey);
 
         String response;
         try {
             response = chatClient.prompt()
                     .system(buildSystemPrompt(language, context))
-                    .user(buildUserPromptWithHistory(message, history))
+                    .user(message)
+                    .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, conversationId))
                     .call()
                     .content();
         } catch (Exception e) {
             log.error("[AiAssistant] Chat call failed: {}", e.getMessage());
             response = "I'm having trouble connecting right now. Please try again or call 182 for railway help.";
         }
-
-        appendToHistory(sessionKey, "user", message);
-        appendToHistory(sessionKey, "assistant", response);
-        redisTemplate.expire(sessionKey, Duration.ofMinutes(sessionTtlMinutes));
 
         return Map.of(
                 "response", response,
@@ -78,7 +60,7 @@ public class AiAssistantService {
     }
 
     public void clearSession(UUID userId) {
-        redisTemplate.delete(String.format(SESSION_KEY, userId));
+        redisTemplate.delete("chatmem:" + userId);
     }
 
     // --- RAG context retrieval ------------------------------------------
@@ -99,7 +81,7 @@ public class AiAssistantService {
         }
     }
 
-    // --- Intent Detection (unchanged) -----------------------------------
+    // Intent Detection
     private String detectIntent(String message) {
         String lower = message.toLowerCase();
 
@@ -123,63 +105,39 @@ public class AiAssistantService {
         return false;
     }
 
-    // --- Rule-based FAQ (unchanged, kept as a fast path) -----------------
+    //  Rule-based FAQ
     private String getFaqResponse(String intent, String language) {
         Map<String, Map<String, String>> faqs = Map.of(
                 "SOS", Map.of(
-                        "en", "\ud83d\udea8 For emergencies, press and hold the red SOS button in the app for 3 seconds. RPF will be notified immediately. If you cannot use the app, call 182 (Railway helpline).",
-                        "hi", "\ud83d\udea8 \u0906\u092a\u093e\u0924\u0915\u093e\u0932 \u092e\u0947\u0902, \u0910\u092a \u092e\u0947\u0902 \u0932\u093e\u0932 SOS \u092c\u091f\u0928 \u0915\u094b 3 \u0938\u0947\u0915\u0902\u0921 \u0926\u092c\u093e\u090f\u0902\u0964 RPF \u0915\u094b \u0924\u0941\u0930\u0902\u0924 \u0938\u0942\u091a\u093f\u0924 \u0915\u093f\u092f\u093e \u091c\u093e\u090f\u0917\u093e\u0964 \u0939\u0947\u0932\u094d\u092a\u0932\u093e\u0907\u0928: 182",
-                        "gu", "\ud83d\udea8 \u0a95\u0a9f\u0acb\u0a95\u0a9f\u0ac0 \u0aae\u0abe\u0aa8\u0abe \u0aae\u0abe\u0a9f\u0ac7, \u0a8f\u0aaa\u0acd\u0aaa\u0aae\u0abe\u0a82 \u0a95\u0a9f\u0acb\u0a95\u0a9f\u0abf\u0aa8\u0acb \u0a95\u0aa4\u0acd\u0aa4\u0abe\u0a95: 182"
+                        "en", "For emergencies, press and hold the red SOS button in the app for 3 seconds. RPF will be notified immediately. If you cannot use the app, call 182 (Railway helpline).",
+                        "hi", "\u0906\u092a\u093e\u0924\u0915\u093e\u0932 \u092e\u0947\u0902, \u0910\u092a \u092e\u0947\u0902 \u0932\u093e\u0932 SOS \u092c\u091f\u0928 \u0915\u094b 3 \u0938\u0947\u0915\u0902\u0921 \u0926\u092c\u093e\u090f\u0902\u0964 RPF \u0915\u094b \u0924\u0941\u0930\u0902\u0924 \u0938\u0942\u091a\u093f\u0924 \u0915\u093f\u092f\u093e \u091c\u093e\u090f\u0917\u093e\u0964 \u0939\u0947\u0932\u094d\u092a\u0932\u093e\u0907\u0928: 182",
+                        "gu", "\u0a95\u0a9f\u0acb\u0a95\u0a9f\u0ac0 \u0aae\u0abe\u0aa8\u0abe \u0aae\u0abe\u0a9f\u0ac7, \u0a8f\u0aaa\u0aaa\u0aae\u0abe\u0a82 \u0a95\u0a9f\u0acb\u0a95\u0a9f\u0abf\u0aa8\u0acb \u0a95\u0aa4\u0acd\u0aa4\u0abe\u0a95: 182"
                 ),
                 "PORTER", Map.of(
-                        "en", "\ud83e\uddf3 Porter service at ADI: \u20b9100.30 for luggage up to 40kg, \u20b9159.30 for barrow (40-160kg), \u20b9159.30 for wheelchair. Book via the Porter section in the app. Cash (COD) payment available.",
-                        "hi", "\ud83e\uddf3 ADI \u092a\u0930 \u092a\u094b\u0930\u094d\u091f\u0930 \u0938\u0947\u0935\u093e: 40kg \u0924\u0915 \u20b9100.30, \u092c\u0948\u0930\u094b \u20b9159.30, \u0935\u094d\u0939\u0940\u0932\u091a\u0947\u092f\u0930 \u20b9159.30\u0964",
-                        "gu", "\ud83e\uddf3 ADI \u0aae\u0abe\u0a82 \u0aaa\u0acb\u0a9f\u0ab0: 40kg \u0a38\u0ac1\u0aa7\u0ac0 \u20b9100.30, \u0ab8\u0acb\u0aad\u0ac0\u0aa4 \u20b9159.30, \u0ab5\u0acd\u0ab9\u0ac0\u0ab2\u0a9a\u0ac7\u0ab0 \u20b9159.30."
+                        "en", "Porter service at ADI: Rs.100.30 for luggage up to 40kg, Rs.159.30 for barrow (40-160kg), Rs.159.30 for wheelchair. Book via the Porter section in the app. Cash (COD) payment available.",
+                        "hi", "ADI \u092a\u0930 \u092a\u094b\u0930\u094d\u091f\u0930 \u0938\u0947\u0935\u093e: 40kg \u0924\u0915 Rs.100.30, \u092c\u0948\u0930\u094b Rs.159.30, \u0935\u094d\u0939\u0940\u0932\u091a\u0947\u092f\u0930 Rs.159.30\u0964",
+                        "gu", "ADI \u0aae\u0abe\u0a82 \u0aaa\u0acb\u0a9f\u0ab0: 40kg \u0a38\u0ac1\u0aa7\u0ac0 Rs.100.30, \u0ab8\u0acb\u0aad\u0ac0\u0aa4 Rs.159.30, \u0ab5\u0acd\u0ab9\u0ac0\u0ab2\u0a9a\u0ac7\u0ab0 Rs.159.30."
                 ),
                 "LOCKER", Map.of(
-                        "en", "\ud83d\udd12 Digital lockers available at Platform 1 & 4. Small: \u20b930 for 6hrs / \u20b950/day. Medium: \u20b950 / \u20b980. Large: \u20b980 / \u20b9120. Book via Lockers section in the app.",
-                        "hi", "\ud83d\udd12 \u0921\u093f\u091c\u093f\u091f\u0932 \u0932\u0949\u0915\u0930 \u092a\u094d\u0932\u0947\u091f\u092b\u0949\u0930\u094d\u092e 1 \u0914\u0930 4 \u092a\u0930 \u0909\u092a\u0932\u092c\u094d\u0927 \u0939\u0948\u0902\u0964",
-                        "gu", "\ud83d\udd12 \u0aa1\u0abf\u0a9c\u0abf\u0a9f\u0ab2 \u0ab2\u0acb\u0a95\u0ab0 Platform 1 \u0a05\u0aa8\u0ac7 4 \u0aaa\u0ab0 \u0a89\u0aaa\u0ab2\u0aac\u0acd\u0aa7."
+                        "en", "Digital lockers available at Platform 1 & 4. Small: Rs.30 for 6hrs / Rs.50/day. Medium: Rs.50 / Rs.80. Large: Rs.80 / Rs.120. Book via Lockers section in the app.",
+                        "hi", "\u0921\u093f\u091c\u093f\u091f\u0932 \u0932\u0949\u0915\u0930 \u092a\u094d\u0932\u0947\u091f\u092b\u0949\u0930\u094d\u092e 1 \u0914\u0930 4 \u092a\u0930 \u0909\u092a\u0932\u092c\u094d\u0927 \u0939\u0948\u0902\u0964",
+                        "gu", "\u0aa1\u0abf\u0a9c\u0abf\u0a9f\u0ab2 \u0ab2\u0acb\u0a95\u0ab0 Platform 1 \u0a05\u0aa8\u0ac7 4 \u0aaa\u0ab0 \u0a89\u0aaa\u0ab2\u0aac\u0acd\u0aa7."
                 ),
                 "ROOM", Map.of(
-                        "en", "\ud83d\udecf Retiring rooms at ADI: AC rooms \u20b9600/night, Non-AC \u20b9350/night, Dormitory \u20b9120/bed. Book via Rooms section in the app. Free cancellation 48 hours before check-in.",
-                        "hi", "\ud83d\udecf ADI \u092a\u0930 \u0930\u093f\u091f\u093e\u092f\u0930\u093f\u0902\u0917 \u0930\u0942\u092e: AC \u20b9600/\u0930\u093e\u0924, \u0928\u0949\u0928-AC \u20b9350/\u0930\u093e\u0924\u0964",
-                        "gu", "\ud83d\udecf ADI \u0a96\u0abe\u0aa4\u0ac7 Retiring Rooms: AC \u20b9600/\u0ab0\u0abe\u0aa4, Non-AC \u20b9350/\u0ab0\u0abe\u0aa4."
+                        "en", "Retiring rooms at ADI: AC rooms Rs.600/night, Non-AC Rs.350/night, Dormitory Rs.120/bed. Book via Rooms section in the app. Free cancellation 48 hours before check-in.",
+                        "hi", "ADI \u092a\u0930 \u0930\u093f\u091f\u093e\u092f\u0930\u093f\u0902\u0917 \u0930\u0942\u092e: AC Rs.600/\u0930\u093e\u0924, \u0928\u0949\u0928-AC Rs.350/\u0930\u093e\u0924\u0964",
+                        "gu", "ADI \u0a96\u0abe\u0aa4\u0ac7 Retiring Rooms: AC Rs.600/\u0ab0\u0abe\u0aa4, Non-AC Rs.350/\u0ab0\u0abe\u0aa4."
                 ),
                 "RESTROOM", Map.of(
-                        "en", "\ud83d\udebb Restrooms are available at Platform 1 (Male, Female, PwD) and Platform 3 (Male, Female). All restrooms are free. Tap Facilities in the app for live status.",
-                        "hi", "\ud83d\udebb \u0936\u094c\u091a\u093e\u0932\u092f \u092a\u094d\u0932\u0947\u091f\u092b\u0949\u0930\u094d\u092e 1 \u0914\u0930 3 \u092a\u0930 \u0909\u092a\u0932\u092c\u094d\u0927 \u0939\u0948\u0902\u0964 \u0928\u093f\u0903\u0936\u0941\u0932\u094d\u0915\u0964",
-                        "gu", "\ud83d\udebb Restroom Platform 1 \u0a05\u0aa8\u0ac7 3 \u0aaa\u0ab0 \u0a89\u0aaa\u0ab2\u0aac\u0acd\u0aa7. \u0aae\u0aab\u0aa4."
+                        "en", "Restrooms are available at Platform 1 (Male, Female, PwD) and Platform 3 (Male, Female). All restrooms are free. Tap Facilities in the app for live status.",
+                        "hi", "\u0936\u094c\u091a\u093e\u0932\u092f \u092a\u094d\u0932\u0947\u091f\u092b\u0949\u0930\u094d\u092e 1 \u0914\u0930 3 \u092a\u0930 \u0909\u092a\u0932\u092c\u094d\u0927 \u0939\u0948\u0902\u0964 \u0928\u093f\u0903\u0936\u0941\u0932\u094d\u0915\u0964",
+                        "gu", "Restroom Platform 1 \u0a05\u0aa8\u0ac7 3 \u0aaa\u0ab0 \u0a89\u0aaa\u0ab2\u0aac\u0acd\u0aa7. \u0aae\u0aab\u0aa4."
                 )
         );
 
         Map<String, String> langMap = faqs.get(intent);
         if (langMap == null) return null;
         return langMap.getOrDefault(language, langMap.get("en"));
-    }
-
-    // --- Session History --------------------------------------------------
-    private List<Map<String, String>> getHistory(String sessionKey) {
-        List<String> raw = redisTemplate.opsForList().range(sessionKey, 0, -1);
-        if (raw == null) return new ArrayList<>();
-
-        List<Map<String, String>> history = new ArrayList<>();
-        for (String entry : raw) {
-            String[] parts = entry.split("\\|\\|", 2);
-            if (parts.length == 2) {
-                history.add(Map.of("role", parts[0], "content", parts[1]));
-            }
-        }
-
-        if (history.size() > maxHistoryMessages) {
-            history = history.subList(history.size() - maxHistoryMessages, history.size());
-        }
-        return history;
-    }
-
-    private void appendToHistory(String sessionKey, String role, String content) {
-        redisTemplate.opsForList().rightPush(sessionKey, role + "||" + content);
-        redisTemplate.opsForList().trim(sessionKey, -maxHistoryMessages * 2L, -1);
     }
 
     private String buildSystemPrompt(String language, String ragContext) {
@@ -192,26 +150,17 @@ public class AiAssistantService {
                 "Help passengers with porter booking, rooms, lockers, restrooms, train info, and general queries. " +
                 "Always respond in " + langName + ". Be concise, helpful, and friendly. " +
                 "For SOS/emergency, always direct to the SOS button or call 182. " +
-                "Do not discuss topics unrelated to railway travel or Ahmedabad tourism.";
+                "Do not discuss topics unrelated to railway travel or Ahmedabad tourism. " +
+                "Use the conversation history to understand follow-up questions in context.";
 
         if (ragContext == null || ragContext.isBlank()) {
-            return base + " If you don't have verified facts (exact prices, hours, locations) for something, " +
-                    "say so honestly and suggest checking the relevant section of the app rather than guessing.";
+            return base + " If you don't have verified facts (exact prices, hours, locations) for a " +
+                    "station-related question, say so honestly and suggest checking the relevant section " +
+                    "of the app rather than guessing.";
         }
 
         return base + "\n\nUse the following verified station facts to answer factual questions " +
                 "(pricing, hours, locations, procedures). If the answer isn't in these facts, say you're " +
                 "not certain rather than guessing:\n" + ragContext;
     }
-
-    private String buildUserPromptWithHistory(String message, List<Map<String, String>> history) {
-        if (history.isEmpty()) return message;
-        StringBuilder sb = new StringBuilder("Conversation so far:\n");
-        for (Map<String, String> turn : history) {
-            sb.append(turn.get("role")).append(": ").append(turn.get("content")).append("\n");
-        }
-        sb.append("\nNow respond to: ").append(message);
-        return sb.toString();
-    }
 }
-
